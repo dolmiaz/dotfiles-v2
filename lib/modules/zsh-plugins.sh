@@ -27,10 +27,11 @@ install_zsh_plugins() {
   done
 }
 
+# Return: 0 = OK, 1 = FAIL (incomplete), 2 = SKIP (not installed)
 check_zsh_plugins() {
   local plugin_dir="${XDG_DATA_HOME:-$HOME/.local/share}/zsh/plugins"
   # Plugin directory does not exist -- not installed, skip.
-  [[ -d "$plugin_dir" ]] || return 0
+  [[ -d "$plugin_dir" ]] || return 2
   # Directory exists but plugins are missing -- incomplete.
   [[ -d "$plugin_dir/zsh-autosuggestions" ]]      || return 1
   [[ -d "$plugin_dir/zsh-syntax-highlighting" ]]  || return 1

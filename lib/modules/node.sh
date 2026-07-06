@@ -28,14 +28,15 @@ install_node() {
   if have npm; then
     log "Setting npm prefix to ~/.local"
     export NPM_CONFIG_USERCONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/npm/npmrc"
-    mkdir -p "$(dirname "$NPM_CONFIG_USERCONFIG")"
+    run mkdir -p "$(dirname "$NPM_CONFIG_USERCONFIG")"
     run npm config set prefix "$HOME/.local"
   fi
 }
 
+# Return: 0 = OK, 1 = FAIL (wrong npm prefix), 2 = SKIP (npm not installed)
 check_node() {
   # If npm is not installed, treat as skipped
-  have npm || return 0
+  have npm || return 2
 
   local prefix
   prefix="$(npm config get prefix 2>/dev/null)"

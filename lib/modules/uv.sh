@@ -14,9 +14,10 @@ install_uv() {
   run sh -c 'curl -LsSf https://astral.sh/uv/install.sh | sh'
 }
 
+# Return: 0 = OK, 2 = SKIP (not installed)
 check_uv() {
   # If uv is not installed, treat as skipped
-  have uv || return 0
+  have uv || return 2
   return 0
 }
 

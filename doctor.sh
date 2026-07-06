@@ -252,15 +252,22 @@ check_shell_zsh() {
     [[ "$current_shell" == */zsh ]]
 }
 
-# 9. /etc/sudoers.d/dotfiles-path exists
+# 9. /etc/sudoers.d/dotfiles-path exists (optional -- the installer does not
+#    deploy this file, so its absence is SKIP rather than FAIL)
 check_sudoers_path() {
-    [[ -f /etc/sudoers.d/dotfiles-path ]]
+    if [[ -f /etc/sudoers.d/dotfiles-path ]]; then
+        return 0
+    fi
+    DOCTOR_SKIP_DETAIL="optional"
+    return 2
 }
 
 # ---------- check registry ----------------------------------------------------
 # Format: "label|check_fn|repair_fn|sudo_flag"
 #   label      - human-readable name for the check
-#   check_fn   - function that returns 0 (OK), 1 (FAIL)
+#   check_fn   - function that returns 0 (OK: installed & healthy),
+#                1 (FAIL: installed but broken / expected but missing),
+#                2 (SKIP: not installed on this machine / not applicable)
 #   repair_fn  - function to call for repair (empty = no auto-repair)
 #   sudo_flag  - "sudo" if the fix needs sudo privileges, "no" otherwise
 
@@ -346,10 +353,25 @@ for entry in "${CHECKS[@]}"; do
         continue
     fi
 
-    # For sudo-requiring checks without --fix-sudo: run the check for
-    # diagnostics but flag that sudo would be needed for the fix.
+    # Run the check, capturing its return code robustly under `set -e`.
+    #   0 = OK, 1 = FAIL, 2 = SKIP (not installed / not applicable)
+    DOCTOR_SKIP_DETAIL=""
+    rc=0
+    "$check_fn" 2>/dev/null || rc=$?
+
+    # SKIP is never an error and is never repaired (applies to sudo checks too).
+    if (( rc == 2 )); then
+        if (( ! QUIET )); then
+            print_result "$label" "skip" "${DOCTOR_SKIP_DETAIL:-not installed}"
+        fi
+        skipped=$((skipped + 1))
+        continue
+    fi
+
+    # For sudo-requiring checks without --fix-sudo: report the result but
+    # flag that sudo would be needed for the fix.
     if [[ "$needs_sudo" == "sudo" ]] && (( ! FIX_SUDO )); then
-        if $check_fn 2>/dev/null; then
+        if (( rc == 0 )); then
             if (( ! QUIET )); then
                 print_result "$label" "ok"
             fi
@@ -361,8 +383,7 @@ for entry in "${CHECKS[@]}"; do
         continue
     fi
 
-    # Run the check.
-    if $check_fn 2>/dev/null; then
+    if (( rc == 0 )); then
         if (( ! QUIET )); then
             print_result "$label" "ok"
         fi

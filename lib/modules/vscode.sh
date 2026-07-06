@@ -78,9 +78,10 @@ install_vscode() {
   fi
 }
 
+# Return: 0 = OK, 2 = SKIP (not installed)
 check_vscode() {
   # If VS Code is not installed, treat as skipped
-  have code || return 0
+  have code || return 2
   return 0
 }
 
