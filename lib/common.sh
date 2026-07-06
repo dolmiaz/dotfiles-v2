@@ -6,8 +6,19 @@ set -euo pipefail
 # ==============================================================================
 
 # Resolve the dotfiles root directory from the location of the sourcing script.
-# Works whether the script is called directly or sourced via symlink.
-DOTFILES_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[1]:-${BASH_SOURCE[0]}}")")" && cd .. && pwd)"
+# Follows symlinks manually for macOS compatibility (no readlink -f).
+_dotfiles_resolve() {
+    local target="${BASH_SOURCE[1]:-${BASH_SOURCE[0]}}"
+    while [[ -L "$target" ]]; do
+        local dir
+        dir="$(cd "$(dirname "$target")" && pwd)"
+        target="$(readlink "$target")"
+        [[ "$target" != /* ]] && target="$dir/$target"
+    done
+    cd "$(dirname "$target")/.." && pwd
+}
+DOTFILES_DIR="$(_dotfiles_resolve)"
+unset -f _dotfiles_resolve
 export DOTFILES_DIR
 
 # DRY_RUN mode: when set to 1, run() prints commands instead of executing them.
