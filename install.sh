@@ -453,19 +453,23 @@ for file in "$DOTFILES_DIR"/home/.*; do
     [[ -f "$file" ]] || continue
     name="$(basename "$file")"
     # ~/.zshrc is the landing pad: external tools may append to it, and
-    # ZDOTDIR/.zshrc sources it at the end. Skip only our marked landing
-    # pad so reruns preserve appended user/tool config. Foreign ~/.zshrc
-    # files are backed up and replaced, matching the ZDOTDIR design.
+    # ZDOTDIR/.zshrc sources it at the end. Always deploy it as a real copy so
+    # appends never write into the repository through a symlink.
     if [[ "$name" == ".zshrc" ]] && [[ -f "$HOME/.zshrc" ]]; then
         if grep -qF '~/.zshrc — Landing Pad' "$HOME/.zshrc"; then
-            if [[ ! -L "$HOME/.zshrc" ]] || [[ "$LINK_MODE" == "1" ]]; then
+            if [[ ! -L "$HOME/.zshrc" ]]; then
+                log "Skipping ~/.zshrc landing pad (copy-only user file)"
                 continue
             fi
         fi
         log "Replacing existing ~/.zshrc with landing pad; previous file will be backed up"
         log "Re-add customizations under ~/.config/zsh/conf.d/ after installation"
     fi
-    deploy_file "$file" "$HOME/$name"
+    if [[ "$name" == ".zshrc" ]]; then
+        deploy_file "$file" "$HOME/$name" "copy"
+    else
+        deploy_file "$file" "$HOME/$name"
+    fi
 done
 
 # Deploy config/ -> ~/.config/
@@ -483,7 +487,14 @@ while IFS= read -r -d '' file; do
     [[ "$rel" == vscode/* ]] && continue
     # npm/npmrc is managed by install_node()/_ensure_npm_prefix_config after
     # the first deployment (it writes prefix/cache into the live copy).
-    [[ "$rel" == "npm/npmrc" ]] && [[ -f "$HOME/.config/npm/npmrc" ]] && continue
+    if [[ "$rel" == "npm/npmrc" ]]; then
+        if [[ -f "$HOME/.config/npm/npmrc" ]]; then
+            log "Skipping npm/npmrc (managed live copy)"
+            continue
+        fi
+        deploy_file "$file" "$HOME/.config/$rel" "copy"
+        continue
+    fi
     deploy_file "$file" "$HOME/.config/$rel"
 done < <(find "$DOTFILES_DIR/config" -type f -print0)
 

@@ -13,6 +13,33 @@ _npm_cache_dir() {
   printf '%s\n' "${XDG_CACHE_HOME:-$HOME/.cache}/npm"
 }
 
+_npm_dereference_userconfig() {
+  local userconfig="$1"
+  [[ -L "$userconfig" ]] || return 0
+
+  if [[ "${DRY_RUN:-0}" == "1" ]]; then
+    log "[DRY-RUN] Would replace npm userconfig symlink with real file: $userconfig"
+    return 0
+  fi
+
+  local dir tmp template
+  dir="$(dirname "$userconfig")"
+  tmp="$(mktemp "$dir/npmrc.XXXXXX")"
+  template="${DOTFILES_DIR:-}/config/npm/npmrc"
+
+  if [[ -e "$userconfig" ]]; then
+    cp -pL "$userconfig" "$tmp"
+  elif [[ -r "$template" ]]; then
+    cp -p "$template" "$tmp"
+  else
+    : > "$tmp"
+  fi
+
+  rm -f "$userconfig"
+  mv "$tmp" "$userconfig"
+  log "Replaced npm userconfig symlink with real file: $userconfig"
+}
+
 _nvm_dir() {
   local dir
   if [[ -n "${NVM_DIR:-}" ]] && [[ -r "$NVM_DIR/nvm.sh" ]]; then
@@ -43,6 +70,7 @@ _ensure_npm_prefix_config() {
   export NPM_CONFIG_CACHE="$(_npm_cache_dir)"
   run mkdir -p "$(dirname "$NPM_CONFIG_USERCONFIG")"
   run mkdir -p "$NPM_CONFIG_CACHE"
+  _npm_dereference_userconfig "$NPM_CONFIG_USERCONFIG"
 
   if [[ ! -f "$NPM_CONFIG_USERCONFIG" ]] && [[ -r "${DOTFILES_DIR:-}/config/npm/npmrc" ]]; then
     run cp -a "$DOTFILES_DIR/config/npm/npmrc" "$NPM_CONFIG_USERCONFIG"
@@ -96,7 +124,17 @@ repair_npm_ownership() {
   [[ -d "$(_npm_cache_dir)" ]] && dirs+=("$(_npm_cache_dir)")
 
   if (( ${#dirs[@]} > 0 )); then
-    run sudo chown -R "$(id -un):$(id -gn)" "${dirs[@]}"
+    if declare -f pkg_run_priv &>/dev/null; then
+      pkg_run_priv chown -R "$(id -un):$(id -gn)" "${dirs[@]}"
+    elif [[ ${EUID:-$(id -u)} -eq 0 ]]; then
+      run chown -R "$(id -un):$(id -gn)" "${dirs[@]}"
+    else
+      local cmd=()
+      cmd+=(sudo)
+      cmd+=(chown -R "$(id -un):$(id -gn)")
+      cmd+=("${dirs[@]}")
+      run "${cmd[@]}"
+    fi
   fi
   check_npm_ownership
 }

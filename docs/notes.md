@@ -338,3 +338,14 @@ Round 3 の「教訓・残課題」に挙げた項目一式を解消。
   skip せず再デプロイし、実ファイルへ戻せるようにした。
 - VS Code の doctor 修復は `code` が存在して settings.json が欠ける場合の user-space
   修復のみなので、plain `--fix` 対象へ戻した。
+
+## 2026-07-07: Round 12 修正
+
+- `~/.config/npm/npmrc` は machine-local な prefix/cache を npm が書き込むため、
+  `--link` 時も常に copy 配置に変更。さらに `_ensure_npm_prefix_config` の
+  `npm config set` 前に既存 symlink を実ファイルへ解参照し、リポジトリ側 npmrc が
+  絶対パスで汚れる事故を防ぐようにした。
+- landing pad `~/.zshrc` は外部ツールが追記する user-append surface のため、
+  `--link` 時も常に copy 配置に変更した。
+- doctor の sudo 修復は root 直実行かつ sudo が無い環境でも動くよう、
+  `pkg_run_priv` を優先し、fallback でも root の場合は sudo なしで実行するようにした。

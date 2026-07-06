@@ -316,10 +316,23 @@ repair_shell_zsh() {
         return 1
     }
     user="${USER:-$(id -un)}"
-    if declare -f run &>/dev/null; then
-        run sudo chsh -s "$zsh_path" "$user"
+    if declare -f pkg_run_priv &>/dev/null; then
+        pkg_run_priv chsh -s "$zsh_path" "$user"
+    elif [[ ${EUID:-$(id -u)} -eq 0 ]]; then
+        if declare -f run &>/dev/null; then
+            run chsh -s "$zsh_path" "$user"
+        else
+            chsh -s "$zsh_path" "$user"
+        fi
     else
-        sudo chsh -s "$zsh_path" "$user"
+        local cmd=()
+        cmd+=(sudo)
+        cmd+=(chsh -s "$zsh_path" "$user")
+        if declare -f run &>/dev/null; then
+            run "${cmd[@]}"
+        else
+            "${cmd[@]}"
+        fi
     fi
 }
 
