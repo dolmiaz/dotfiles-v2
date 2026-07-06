@@ -56,7 +56,9 @@ _vscode_install_extensions() {
   local exts=("$@")
   for ext in "${exts[@]}"; do
     log "Installing VS Code extension: $ext"
-    run "$code_cmd" --install-extension "$ext" --force
+    if ! run "$code_cmd" --install-extension "$ext" --force; then
+      warn "Failed to install VS Code extension: $ext"
+    fi
   done
 }
 

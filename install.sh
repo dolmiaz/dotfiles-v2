@@ -375,7 +375,12 @@ log "Deploying dotfiles..."
 # Deploy home/ -> ~/
 for file in "$DOTFILES_DIR"/home/.*; do
     [[ -f "$file" ]] || continue
-    deploy_file "$file" "$HOME/$(basename "$file")"
+    name="$(basename "$file")"
+    # ~/.zshrc is the landing pad: external tools may append to it, and
+    # ZDOTDIR/.zshrc sources it at the end. Deploy only on first install so
+    # reruns preserve appended user/tool config. Other home shims stay managed.
+    [[ "$name" == ".zshrc" ]] && [[ -f "$HOME/.zshrc" ]] && continue
+    deploy_file "$file" "$HOME/$name"
 done
 
 # Deploy config/ -> ~/.config/
@@ -391,6 +396,9 @@ while IFS= read -r -d '' file; do
     # Skip vscode/ -- deployed to the OS-specific VS Code settings path by
     # install_vscode() in lib/modules/vscode.sh, not ~/.config/vscode/.
     [[ "$rel" == vscode/* ]] && continue
+    # npm/npmrc is managed by install_node()/_ensure_npm_prefix_config after
+    # the first deployment (it writes prefix/cache into the live copy).
+    [[ "$rel" == "npm/npmrc" ]] && [[ -f "$HOME/.config/npm/npmrc" ]] && continue
     deploy_file "$file" "$HOME/.config/$rel"
 done < <(find "$DOTFILES_DIR/config" -type f -print0)
 
@@ -404,14 +412,52 @@ for mod in "$DOTFILES_DIR"/lib/modules/*.sh; do
     source "$mod"
 done
 
+# Track modules that fail so one bad module (e.g. a network blip during the
+# rustup download) doesn't kill the whole installer via set -e -- the rest
+# of the modules, chsh, and the completion message should still run.
+FAILED_MODULES=()
+
+# run_module NAME COMMAND [ARGS...]
+#   Run COMMAND; on failure, warn and record NAME in FAILED_MODULES instead
+#   of letting set -e abort the whole script.
+#
+#   COMMAND runs in a subshell with `set -e` re-enabled, not inside an
+#   `if ! ...` condition: bash disables errexit for the duration of any
+#   command that is itself the condition of an if/while/&&/||, so a plain
+#   `if ! "$@"` would silently disable set -e *inside* the module -- a
+#   failing command mid-module would not abort the module, and whatever
+#   ran last would determine the (wrongly) reported success/failure.
+#   Modules therefore run in a subshell: they must not rely on exporting
+#   state (env vars, etc.) to steps later in install.sh. Verified this
+#   holds today -- install_cli_tools/c_cpp/rust/uv/node/vscode/zsh_plugins
+#   only set module-local or re-derived env (e.g. NPM_CONFIG_* is
+#   re-derived by check_node()/repair_node() via _ensure_npm_prefix_config,
+#   not read from a prior export), and nothing after the module block
+#   consumes CARGO_HOME/RUSTUP_HOME/NPM_CONFIG_* etc.
+run_module() {
+    local name="$1"; shift
+    local rc=0
+    set +e
+    ( set -e; "$@" )
+    rc=$?
+    set -e
+    if (( rc != 0 )); then
+        warn "Component '$name' failed to install -- continuing with the rest"
+        FAILED_MODULES+=("$name")
+    fi
+}
+
+# base packages is called directly (not via run_module): zsh/git are
+# prerequisites for everything else, so a failure here should still be
+# fatal via normal set -e semantics.
 [[ "$INSTALL_BASE" == "1" ]]        && install_base
-[[ "$INSTALL_CLI_TOOLS" == "1" ]]   && install_cli_tools
-[[ "$INSTALL_C_CPP" == "1" ]]       && install_c_cpp
-[[ "$INSTALL_RUST" == "1" ]]        && install_rust
-[[ "$INSTALL_UV" == "1" ]]          && install_uv
-[[ "$INSTALL_NODE" == "1" ]]        && install_node
-[[ "$INSTALL_VSCODE" == "1" ]]      && install_vscode
-[[ "$INSTALL_ZSH_PLUGINS" == "1" ]] && install_zsh_plugins
+[[ "$INSTALL_CLI_TOOLS" == "1" ]]   && run_module "CLI tools" install_cli_tools
+[[ "$INSTALL_C_CPP" == "1" ]]       && run_module "C/C++ toolchain" install_c_cpp
+[[ "$INSTALL_RUST" == "1" ]]        && run_module "Rust" install_rust
+[[ "$INSTALL_UV" == "1" ]]          && run_module "uv (Python)" install_uv
+[[ "$INSTALL_NODE" == "1" ]]        && run_module "Node.js" install_node
+[[ "$INSTALL_VSCODE" == "1" ]]      && run_module "VS Code extensions" install_vscode
+[[ "$INSTALL_ZSH_PLUGINS" == "1" ]] && run_module "zsh plugins" install_zsh_plugins
 
 # ---------- chsh (change default shell to zsh) --------------------------------
 
@@ -430,7 +476,17 @@ fi
 
 # ---------- done --------------------------------------------------------------
 
-log "dotfiles installation complete!"
-if [[ "$DRY_RUN" == "1" ]]; then
-    log "(dry-run mode -- no actual changes were made)"
+if [[ ${#FAILED_MODULES[@]} -eq 0 ]]; then
+    log "dotfiles installation complete!"
+    if [[ "$DRY_RUN" == "1" ]]; then
+        log "(dry-run mode -- no actual changes were made)"
+    fi
+else
+    log "dotfiles installation finished with errors"
+    if [[ "$DRY_RUN" == "1" ]]; then
+        log "(dry-run mode -- no actual changes were made)"
+    fi
+    warn "Some components failed: ${FAILED_MODULES[*]}"
+    warn "Re-run install.sh to retry, or install them manually"
+    exit 1
 fi

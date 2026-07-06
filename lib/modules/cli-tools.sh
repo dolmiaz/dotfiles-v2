@@ -10,6 +10,11 @@ CLI_TOOLS=(eza fzf zoxide starship direnv)
 install_cli_tools() {
   log "Installing CLI tools: ${CLI_TOOLS[*]}"
 
+  # fzf/direnv/eza live in EPEL on Red Hat family systems.
+  if [[ "$OS" == "redhat" ]] && ! pkg_install epel-release; then
+    warn "Could not enable EPEL -- some CLI tools may be unavailable"
+  fi
+
   # ---- eza ----
   case "$OS" in
     macos)  if ! pkg_install eza; then warn "eza is not available from $PKG_MANAGER; install it manually (https://eza.rocks)"; fi ;;

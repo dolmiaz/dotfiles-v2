@@ -15,16 +15,30 @@ install_zsh_plugins() {
   run mkdir -p "$ZSH_PLUGINS_DIR"
 
   local name url
+  local fail_count=0
   for entry in "${ZSH_PLUGINS[@]}"; do
     read -r name url <<< "$entry"
     if [[ -d "$ZSH_PLUGINS_DIR/$name/.git" ]]; then
       log "Updating zsh plugin: $name"
-      run git -C "$ZSH_PLUGINS_DIR/$name" pull --quiet
+      if ! run git -C "$ZSH_PLUGINS_DIR/$name" pull --quiet; then
+        warn "Failed to update/clone zsh plugin: $name"
+        fail_count=$((fail_count + 1))
+      fi
     else
       log "Cloning zsh plugin: $name"
-      run git clone --quiet "$url" "$ZSH_PLUGINS_DIR/$name"
+      if ! run git clone --quiet "$url" "$ZSH_PLUGINS_DIR/$name"; then
+        warn "Failed to update/clone zsh plugin: $name"
+        fail_count=$((fail_count + 1))
+      fi
     fi
   done
+
+  # If every plugin failed, report overall failure so install.sh counts this
+  # module as failed; a partial failure still returns success.
+  if [[ "$fail_count" -eq "${#ZSH_PLUGINS[@]}" ]]; then
+    return 1
+  fi
+  return 0
 }
 
 # Return: 0 = OK, 1 = FAIL (incomplete), 2 = SKIP (not installed)

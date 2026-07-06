@@ -192,3 +192,76 @@ Round 3 の「教訓・残課題」に挙げた項目一式を解消。
   1Password 導入済みでもセクションを削除し `warn` で通知（署名なしの通常コミットは可能）
 - 既存ユーザーの実 `~/.config/git/config` の修復は本ラウンドのスコープ外
   （テンプレートと生成ロジックの修正のみ。別プロセスで対応予定）
+
+## 2026-07-06: Round 5 安定性修正
+
+### 失敗分離（モジュール/VS Code拡張/zshプラグイン）
+- install.sh: モジュール実行を `run_module` 経由に変更し、1モジュールの失敗が
+  set -e で全体を巻き込まないように隔離（`FAILED_MODULES` に記録して継続）。
+  ただし base packages のみ従来通り致命的（zsh/git は他の前提のため直接呼び出し）
+- 完了メッセージを失敗有無で分岐: 失敗があれば
+  「dotfiles installation finished with errors」+ 失敗コンポーネント一覧を
+  warn 表示して exit 1、無ければ従来通り成功メッセージで exit 0
+- vscode.sh: `_vscode_install_extensions` の拡張機能インストール失敗を
+  warn に変更し、他の拡張機能のインストールを継続
+- zsh-plugins.sh: clone/pull 失敗時は warn して次のプラグインへ継続。
+  全プラグインが失敗した場合のみ関数全体を失敗扱い（install.sh 側で
+  コンポーネント失敗としてカウントされるように）
+
+### dry-run ログの正確化
+- deploy.sh の deploy_file: DRY_RUN 時に「Linked:」「Copied:」と実行済みの
+  ように見えるログを出していた問題を修正。DRY_RUN 時は
+  「[DRY-RUN] Would link/copy: ...」を表示するよう分岐
+
+### symlink バックアップ
+- deploy.sh の backup_file: シンボリックリンクを常にスキップしていたため、
+  ユーザーが用意した別ターゲットへのシンボリックリンクが無記録のまま
+  削除されていた問題を修正。第2引数 `SKIP_IF_TARGET`（省略可）を追加し、
+  リンク先がその値と一致する場合のみバックアップを省略。それ以外の
+  シンボリックリンクは `cp -a` でリンクそのものをバックアップする。
+  deploy_file の呼び出しを `backup_file "$dest" "$src"` に変更
+
+## 2026-07-07: Rocky Linux 9 実機テストで判明した不具合対応（Round 6）
+
+### run_module の set -e 無効化バグ（最優先）
+- install.sh: `if ! "$@"` はコマンドを条件文の位置に置くため、bash の
+  仕様でモジュール内部の `set -e` が無効化されてしまい、モジュール途中の
+  コマンドが失敗しても後続コマンドが実行され続けていた。Rocky 9 実機で
+  確認: install_node 内の `dnf module install nodejs` が失敗（exit 1）した後も
+  `_ensure_npm_prefix_config` が実行されて 0 を返すため、install_node 全体が
+  「成功」と誤判定され、node 未導入のまま warn も出さず exit 0 していた。
+  修正: `run_module` はモジュールをサブシェル `( set -e; "$@" )` の中で
+  `set -e` を再有効化して実行し、条件文の位置には置かない形に変更。
+  モジュールはサブシェルで動くため、後続ステップへの env export に
+  依存できなくなる点を確認済み（CARGO_HOME/RUSTUP_HOME は rust.sh 内で、
+  NPM_CONFIG_* は node.sh の check_node/repair_node が都度再導出しており、
+  install.sh 側でこれらを参照する箇所も無いため影響なし）
+
+### cmp 欠如による冪等性崩れ
+- lib/deploy.sh: Rocky Linux 9 の最小構成コンテナには diffutils（`cmp`）が
+  含まれておらず、`cmp -s src dest` が exit 127 になるため、再実行のたびに
+  全ファイル（約32個）がバックアップ＋再コピーされていた。
+  `_files_identical` ヘルパーを新設し、`cmp` が無い環境では `cksum` による
+  内容比較にフォールバックするよう修正。deploy_file の呼び出しを置き換え
+
+### EL9 の nodejs モジュールに既定ストリームが無い問題
+- lib/modules/node.sh: Rocky 9 で `dnf module install -y nodejs` が
+  「matches 4 streams ... none enabled or default」で失敗することを確認
+  （EL8 には既定ストリームがあるが EL9 には無い）。一方 `dnf install nodejs npm`
+  は AppStream の v16 で成功する。redhat 分岐を修正し、モジュールインストール
+  失敗時は warn の上で `pkg_install nodejs npm` にフォールバックするよう変更
+
+### Red Hat 系での EPEL 自動有効化
+- lib/modules/cli-tools.sh: `fzf`（および direnv/eza の一部）が EL9 では
+  EPEL リポジトリに含まれるため、install_cli_tools の先頭で
+  `pkg_install epel-release` を実行するよう追加。Fedora など epel-release が
+  存在しない環境でも warn のみで継続（failure-tolerant）
+
+### npmrc 再デプロイによる churn
+- install_node が `~/.config/npm/npmrc` に prefix/cache を書き込んで管理する
+  ようになった後も、install.sh の config デプロイループがリポジトリの
+  素の npmrc を毎回上書きしてしまい、バックアップの増殖と prefix 設定の
+  一時的な消失（次の install_node 実行までの間）を引き起こしていた。
+  config デプロイループで `npm/npmrc` は初回デプロイ後（`~/.config/npm/npmrc`
+  が既に存在する場合）はスキップするよう修正。以降は node.sh が管理する
+- landing pad `~/.zshrc` の再デプロイ上書き（追記消失）を初回のみデプロイに変更。

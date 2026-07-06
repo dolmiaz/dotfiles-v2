@@ -128,10 +128,15 @@ install_node() {
       pkg_install nodejs npm
       ;;
     redhat)
+      # EL8 has a default nodejs module stream; EL9 does not, so fall back
+      # to the plain AppStream package when the module install fails.
       if have dnf; then
-        pkg_run_priv dnf module install -y nodejs
+        if ! pkg_run_priv dnf module install -y nodejs; then
+          warn "dnf module install nodejs failed (no default stream?) -- falling back to plain package"
+          pkg_install nodejs npm
+        fi
       else
-        pkg_install nodejs
+        pkg_install nodejs npm
       fi
       ;;
   esac

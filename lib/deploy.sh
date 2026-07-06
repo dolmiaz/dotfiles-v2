@@ -14,20 +14,46 @@ fi
 LINK_MODE="${LINK_MODE:-0}"
 export LINK_MODE
 
+# ---------- comparison ---------------------------------------------------------
+
+# _files_identical A B
+#   Content comparison that works even when diffutils (cmp) is missing
+#   (e.g. minimal Rocky Linux containers): falls back to cksum.
+_files_identical() {
+    if have cmp; then
+        cmp -s "$1" "$2"
+    else
+        [[ "$(cksum < "$1")" == "$(cksum < "$2")" ]]
+    fi
+}
+
 # ---------- backup ------------------------------------------------------------
 
-# backup_file FILE
-#   Create a timestamped backup of FILE if it exists and is not a symlink.
+# backup_file FILE [SKIP_IF_TARGET]
+#   Create a timestamped backup of FILE if it exists.
 #   Backup is placed next to the original with a .bak.<timestamp> suffix.
+#
+#   If FILE is a symlink:
+#     - and SKIP_IF_TARGET is given and readlink(FILE) equals it, no backup
+#       is made (deploy_file already handles the "already linked to src"
+#       case itself, but this lets callers pass the intended source anyway).
+#     - otherwise the symlink itself is backed up (via `cp -a`, which
+#       preserves the link rather than following it), so a symlink pointing
+#       somewhere else is never silently discarded without a record.
+#   SKIP_IF_TARGET is optional; when omitted, all symlinks are backed up.
+#
 #   Returns 0 if a backup was created or no backup was needed, 1 on error.
 backup_file() {
     local file="${1:?backup_file: file path required}"
+    local skip_if_target="${2:-}"
 
     # Nothing to back up if the file doesn't exist.
-    [[ -e "$file" ]] || return 0
+    [[ -e "$file" ]] || [[ -L "$file" ]] || return 0
 
-    # Skip symlinks -- we'll just replace them.
-    [[ -L "$file" ]] && return 0
+    # Skip only when the symlink already points at the intended source.
+    if [[ -L "$file" ]] && [[ -n "$skip_if_target" ]] && [[ "$(readlink "$file")" == "$skip_if_target" ]]; then
+        return 0
+    fi
 
     local timestamp
     timestamp="$(date +%Y%m%d%H%M%S)"
@@ -38,6 +64,7 @@ backup_file() {
         return 0
     fi
 
+    # cp -a preserves symlinks (copies the link itself, not its target).
     if cp -a "$file" "$backup"; then
         log "Backed up: $file -> $backup"
     else
@@ -83,13 +110,15 @@ deploy_file() {
     fi
 
     # In copy mode, skip identical regular files (avoids backup churn on re-runs).
-    if [[ "$mode" == "copy" ]] && [[ -f "$dest" ]] && [[ ! -L "$dest" ]] && cmp -s "$src" "$dest"; then
+    if [[ "$mode" == "copy" ]] && [[ -f "$dest" ]] && [[ ! -L "$dest" ]] && _files_identical "$src" "$dest"; then
         log "Up to date: $dest"
         return 0
     fi
 
-    # Back up existing file at destination.
-    backup_file "$dest"
+    # Back up existing file at destination (skip only if it's already a
+    # symlink pointing at src -- that case is handled above and returns
+    # earlier, but pass src through in case this ever changes).
+    backup_file "$dest" "$src"
 
     # Ensure parent directory exists.
     local dest_dir
@@ -106,11 +135,19 @@ deploy_file() {
     case "$mode" in
         link)
             run ln -sf "$src" "$dest"
-            log "Linked: $dest -> $src"
+            if [[ "$DRY_RUN" == "1" ]]; then
+                log "[DRY-RUN] Would link: $dest -> $src"
+            else
+                log "Linked: $dest -> $src"
+            fi
             ;;
         copy)
             run cp -a "$src" "$dest"
-            log "Copied: $src -> $dest"
+            if [[ "$DRY_RUN" == "1" ]]; then
+                log "[DRY-RUN] Would copy: $src -> $dest"
+            else
+                log "Copied: $src -> $dest"
+            fi
             ;;
         *)
             die "Unknown deploy mode: $mode (expected 'link' or 'copy')"

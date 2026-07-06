@@ -65,7 +65,7 @@ cd dotfiles-v2
 
 モダン CLI ツール: `eza` `fzf` `zoxide` `starship` `direnv`
 
-`eza` / `fzf` / `direnv` はパッケージマネージャから、`starship` と `zoxide` は未導入の場合に公式インストーラ（curl | sh）で導入します。
+`eza` / `fzf` / `direnv` はパッケージマネージャから、`starship` と `zoxide` は未導入の場合に公式インストーラ（curl | sh）で導入します。Red Hat 系では `fzf` / `direnv` / `eza` が EPEL に含まれるため、導入前に `epel-release` を自動で有効化します（失敗しても警告のみで継続）。
 
 ### c-cpp
 
@@ -85,7 +85,7 @@ Python パッケージマネージャ uv を公式インストーラで導入し
 
 - macOS: `brew install node`
 - Debian 系: `nodejs` `npm`
-- Red Hat 系: `dnf module install nodejs`（既定ストリーム）
+- Red Hat 系: `dnf module install nodejs`（既定ストリーム）。EL9 系は nodejs モジュールに既定ストリームが無くこのコマンドが失敗するため、失敗時は通常の AppStream パッケージ（`nodejs` `npm`）へ自動フォールバックします
 
 導入後、npm の cache は XDG 準拠の `~/.cache/npm` を使います。グローバル prefix は nvm が無い環境でのみ `~/.local` に設定し（root 不要のグローバルインストール）、nvm がある環境では prefix を設定せず nvm 管理に任せます。npmrc は `~/.config/npm/npmrc` です。
 
