@@ -36,7 +36,7 @@ ask() {
 
     # Auto-accept in YES mode.
     if [[ "$YES" == "1" ]]; then
-        log "(auto) $question $prompt -> $default"
+        log "(auto) $question $prompt -> $default" >&2
         [[ "$default" == "Y" ]]
         return
     fi

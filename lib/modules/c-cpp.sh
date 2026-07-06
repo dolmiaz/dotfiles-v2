@@ -26,13 +26,10 @@ install_c_cpp() {
 }
 
 check_c_cpp() {
-  local has_compiler=0 has_cmake=0
-  { have gcc || have cc; } && has_compiler=1
-  have cmake && has_cmake=1
-  # Nothing installed at all -- skip (not an error).
-  (( has_compiler == 0 && has_cmake == 0 )) && return 0
-  # Both present -- OK.
-  (( has_compiler && has_cmake )) || return 1
+  # cmake is the primary indicator that C/C++ was installed via our setup.
+  # System compilers (e.g. macOS /usr/bin/cc) don't count as "our" install.
+  have cmake || return 0
+  { have gcc || have cc; } || return 1
   return 0
 }
 

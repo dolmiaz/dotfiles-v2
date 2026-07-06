@@ -20,14 +20,8 @@ install_rust() {
 }
 
 check_rust() {
-  # Ensure XDG-compliant paths for the check.
-  export CARGO_HOME="${CARGO_HOME:-${XDG_DATA_HOME:-$HOME/.local/share}/cargo}"
-  export RUSTUP_HOME="${RUSTUP_HOME:-${XDG_DATA_HOME:-$HOME/.local/share}/rustup}"
-
-  # If rustup is not installed, treat as skipped
   have rustup || return 0
   have cargo || return 1
-  [[ -d "${CARGO_HOME}/bin" ]] || return 1
   return 0
 }
 

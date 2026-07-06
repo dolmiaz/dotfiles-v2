@@ -166,6 +166,11 @@ if [[ "$GIT_CONFIG" != "SKIP" ]]; then
     git_email="$(ask_input "Git user.email" "$_default_git_email")"
     git_editor="${VISUAL:-${EDITOR:-vim}}"
 
+    if [[ -z "$git_name" ]] || [[ -z "$git_email" ]]; then
+        warn "git user.name or user.email is empty — skipping git config generation"
+        warn "Run install.sh again without --yes to set git identity interactively"
+    fi
+
     # Determine credential helper based on OS.
     case "$OS" in
         macos)  git_credential_helper="osxkeychain" ;;
@@ -177,7 +182,9 @@ if [[ "$GIT_CONFIG" != "SKIP" ]]; then
     template="$DOTFILES_DIR/config/git/config.template"
     git_config_dest="$HOME/.config/git/config"
 
-    if [[ "$DRY_RUN" == "1" ]]; then
+    if [[ -z "$git_name" ]] || [[ -z "$git_email" ]]; then
+        : # skip git config generation (warning already printed above)
+    elif [[ "$DRY_RUN" == "1" ]]; then
         log "[DRY-RUN] Generate git config from template -> $git_config_dest"
         log "[DRY-RUN]   user.name  = $git_name"
         log "[DRY-RUN]   user.email = $git_email"
