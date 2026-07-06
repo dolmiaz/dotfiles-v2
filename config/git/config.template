@@ -15,7 +15,6 @@
 	fsmonitor = true
 	untrackedcache = true
 	excludesFile = ~/.config/git/ignore
-	pager = delta
 
 [color]
 	ui = auto
@@ -45,17 +44,20 @@
 [rerere]
 	enabled = true
 
+# __BEGIN_LFS__
 [filter "lfs"]
 	clean = git-lfs clean -- %f
 	smudge = git-lfs smudge -- %f
 	process = git-lfs filter-process
 	required = true
+# __END_LFS__
 
 # ── OS-specific: macOS ───────────────────────────────────────
 # __BEGIN_MACOS__
 [credential]
 	helper = __GIT_CREDENTIAL_HELPER__
 
+# __BEGIN_1PASSWORD__
 [gpg]
 	format = ssh
 
@@ -64,6 +66,7 @@
 
 [commit]
 	gpgsign = true
+# __END_1PASSWORD__
 # __END_MACOS__
 
 # ── OS-specific: Linux ───────────────────────────────────────

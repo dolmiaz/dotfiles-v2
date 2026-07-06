@@ -88,9 +88,7 @@ detect_pkg_manager
 # ---------- profile selection -------------------------------------------------
 
 if [[ -z "$PROFILE" ]]; then
-    # select_profile prints log lines and the value to stdout in --yes mode.
-    # Filter out log lines to capture only the profile name.
-    PROFILE="$(select_profile | grep -v '^\[INFO\]' || true)"
+    PROFILE="$(select_profile)"
 fi
 
 # Validate profile name.
@@ -153,10 +151,12 @@ resolve_flag INSTALL_ZSH_PLUGINS "zsh plugins"       "$ZSH_PLUGINS"
 if [[ "$GIT_CONFIG" != "SKIP" ]]; then
     log "Configuring git..."
 
-    # ask_input prints both a log line and the value to stdout in --yes mode.
-    # Filter out log lines (starting with [INFO]) to capture only the value.
-    git_name="$(ask_input "Git user.name" "${GIT_USER_NAME:-}" | grep -v '^\[INFO\]' || true)"
-    git_email="$(ask_input "Git user.email" "${GIT_USER_EMAIL:-}" | grep -v '^\[INFO\]' || true)"
+    # Use existing git config values as defaults when profile does not provide them.
+    _default_git_name="${GIT_USER_NAME:-$(git config --global user.name 2>/dev/null || true)}"
+    _default_git_email="${GIT_USER_EMAIL:-$(git config --global user.email 2>/dev/null || true)}"
+
+    git_name="$(ask_input "Git user.name" "$_default_git_name")"
+    git_email="$(ask_input "Git user.email" "$_default_git_email")"
     git_editor="${VISUAL:-${EDITOR:-vim}}"
 
     # Determine credential helper based on OS.
@@ -178,6 +178,8 @@ if [[ "$GIT_CONFIG" != "SKIP" ]]; then
         log "[DRY-RUN]   credential = $git_credential_helper"
     else
         mkdir -p "$(dirname "$git_config_dest")"
+        # Backup existing git config before overwriting.
+        backup_file "$git_config_dest"
 
         # Read template content.
         git_config_content="$(cat "$template")"
@@ -209,6 +211,20 @@ if [[ "$GIT_CONFIG" != "SKIP" ]]; then
             git_config_content="$(printf '%s' "$git_config_content" | sed '/^# __BEGIN_MACOS__$/,/^# __END_MACOS__$/d')"
             # Remove LINUX marker lines but keep content between them.
             git_config_content="$(printf '%s' "$git_config_content" | sed -e '/^# __BEGIN_LINUX__$/d' -e '/^# __END_LINUX__$/d')"
+        fi
+
+        # Remove LFS section if git-lfs is not installed.
+        if ! have git-lfs; then
+            git_config_content="$(printf '%s' "$git_config_content" | sed '/^# __BEGIN_LFS__$/,/^# __END_LFS__$/d')"
+        else
+            git_config_content="$(printf '%s' "$git_config_content" | sed -e '/^# __BEGIN_LFS__$/d' -e '/^# __END_LFS__$/d')"
+        fi
+
+        # Remove 1Password section if the app is not installed.
+        if [[ ! -d "/Applications/1Password.app" ]] && ! have op; then
+            git_config_content="$(printf '%s' "$git_config_content" | sed '/^# __BEGIN_1PASSWORD__$/,/^# __END_1PASSWORD__$/d')"
+        else
+            git_config_content="$(printf '%s' "$git_config_content" | sed -e '/^# __BEGIN_1PASSWORD__$/d' -e '/^# __END_1PASSWORD__$/d')"
         fi
 
         printf '%s\n' "$git_config_content" > "$git_config_dest"
