@@ -35,6 +35,10 @@ if [[ -r "$DOTFILES_DIR/lib/detect.sh" ]]; then
     detect_os 2>/dev/null || true
     detect_pkg_manager 2>/dev/null || true
 fi
+if [[ -r "$DOTFILES_DIR/lib/deploy.sh" ]]; then
+    # shellcheck source=lib/deploy.sh
+    source "$DOTFILES_DIR/lib/deploy.sh"
+fi
 
 # Source all modules (provides check_*/repair_* functions).
 if [[ -d "$DOTFILES_DIR/lib/modules" ]]; then
@@ -43,6 +47,19 @@ if [[ -d "$DOTFILES_DIR/lib/modules" ]]; then
     done
     unset _mod
 fi
+
+# ---------- backup helper (standalone fallback) ------------------------------
+
+# backup_file_simple FILE
+#   Simple backup when deploy.sh (and its backup_file) is not available.
+backup_file_simple() {
+    local file="$1"
+    [[ -e "$file" ]] || return 0
+    [[ -L "$file" ]] && return 0
+    local ts
+    ts="$(date +%Y%m%d%H%M%S)"
+    cp -a "$file" "${file}.bak.${ts}" 2>/dev/null || true
+}
 
 # ---------- colour helpers (standalone fallback) ------------------------------
 
@@ -133,8 +150,13 @@ check_dotfiles_zshenv() {
 }
 repair_dotfiles_zshenv() {
     if [[ -r "$DOTFILES_DIR/home/.zshenv" ]]; then
-        cp "$DOTFILES_DIR/home/.zshenv" "$HOME/.zshenv"
-        log "Copied home/.zshenv to ~/.zshenv"
+        if declare -f deploy_file &>/dev/null; then
+            deploy_file "$DOTFILES_DIR/home/.zshenv" "$HOME/.zshenv" "copy"
+        else
+            backup_file_simple "$HOME/.zshenv"
+            cp "$DOTFILES_DIR/home/.zshenv" "$HOME/.zshenv"
+        fi
+        log "Deployed home/.zshenv to ~/.zshenv"
     else
         warn "home/.zshenv not found in dotfiles repository"
         return 1
@@ -147,8 +169,13 @@ check_dotfiles_zshrc() {
 }
 repair_dotfiles_zshrc() {
     if [[ -r "$DOTFILES_DIR/home/.zshrc" ]]; then
-        cp "$DOTFILES_DIR/home/.zshrc" "$HOME/.zshrc"
-        log "Copied home/.zshrc to ~/.zshrc"
+        if declare -f deploy_file &>/dev/null; then
+            deploy_file "$DOTFILES_DIR/home/.zshrc" "$HOME/.zshrc" "copy"
+        else
+            backup_file_simple "$HOME/.zshrc"
+            cp "$DOTFILES_DIR/home/.zshrc" "$HOME/.zshrc"
+        fi
+        log "Deployed home/.zshrc to ~/.zshrc"
     else
         warn "home/.zshrc not found in dotfiles repository"
         return 1

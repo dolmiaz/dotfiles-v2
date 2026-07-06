@@ -42,7 +42,7 @@ ask() {
     fi
 
     local answer
-    printf '%s %s ' "$question" "$prompt"
+    printf '%s %s ' "$question" "$prompt" >&2
     read -r answer </dev/tty || answer=""
     answer="${answer:-$default}"
     answer="${answer^^}"
@@ -60,18 +60,19 @@ ask_input() {
     local question="${1:?ask_input: question required}"
     local default="${2:-}"
 
-    # Auto-accept in YES mode.
+    # Auto-accept in YES mode.  log goes to stderr to avoid contaminating
+    # the value captured by command substitution.
     if [[ "$YES" == "1" ]]; then
-        log "(auto) $question -> ${default:-(empty)}"
+        log "(auto) $question -> ${default:-(empty)}" >&2
         printf '%s' "$default"
         return 0
     fi
 
     local answer
     if [[ -n "$default" ]]; then
-        printf '%s [%s]: ' "$question" "$default"
+        printf '%s [%s]: ' "$question" "$default" >&2
     else
-        printf '%s: ' "$question"
+        printf '%s: ' "$question" >&2
     fi
     read -r answer </dev/tty || answer=""
     printf '%s' "${answer:-$default}"
@@ -89,23 +90,23 @@ select_profile() {
     local default="desktop"
 
     if [[ "$YES" == "1" ]]; then
-        log "(auto) Profile -> $default"
+        log "(auto) Profile -> $default" >&2
         printf '%s' "$default"
         return 0
     fi
 
-    printf '\nSelect a profile:\n'
+    printf '\nSelect a profile:\n' >&2
     local i
     for i in "${!profiles[@]}"; do
         local marker=""
         if [[ "${profiles[$i]}" == "$default" ]]; then
             marker=" (default)"
         fi
-        printf '  %d) %s%s\n' "$((i + 1))" "${profiles[$i]}" "$marker"
+        printf '  %d) %s%s\n' "$((i + 1))" "${profiles[$i]}" "$marker" >&2
     done
 
     local choice
-    printf 'Enter number [1]: '
+    printf 'Enter number [1]: ' >&2
     read -r choice </dev/tty || choice=""
     choice="${choice:-1}"
 
