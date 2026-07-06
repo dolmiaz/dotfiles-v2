@@ -1,0 +1,28 @@
+# Global gitignore — applied to all repositories via core.excludesFile
+
+# ── macOS ────────────────────────────────────────────────────
+.DS_Store
+._*
+.Spotlight-V100
+.Trashes
+.AppleDouble
+.LSOverride
+
+# ── Windows ──────────────────────────────────────────────────
+Thumbs.db
+desktop.ini
+ehthumbs.db
+
+# ── Linux ────────────────────────────────────────────────────
+*~
+
+# ── Editors ──────────────────────────────────────────────────
+*.swp
+*.swo
+*.swn
+*~
+.idea/
+.vscode/
+
+# ── AI agent local settings ─────────────────────────────────
+**/.claude/settings.local.json
