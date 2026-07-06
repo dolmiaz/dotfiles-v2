@@ -36,11 +36,20 @@ install_vscode() {
         run brew install --cask visual-studio-code
         ;;
       debian)
-        # Use snap as a widely-available fallback
-        run sudo snap install code --classic
+        if have snap; then
+          run sudo snap install code --classic
+        else
+          warn "snap not found; skipping VS Code installation"
+          return
+        fi
         ;;
       redhat)
-        run sudo snap install code --classic
+        if have snap; then
+          run sudo snap install code --classic
+        else
+          warn "snap not found; skipping VS Code installation"
+          return
+        fi
         ;;
     esac
   fi

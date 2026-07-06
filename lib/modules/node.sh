@@ -15,13 +15,20 @@ install_node() {
       pkg_install nodejs npm
       ;;
     redhat)
-      run sudo dnf module install -y nodejs
+      if have dnf; then
+        run sudo dnf module install -y nodejs
+      else
+        pkg_install nodejs
+      fi
       ;;
   esac
 
-  # Set npm global prefix to ~/.local for non-root installs
+  # Set npm global prefix to ~/.local for non-root installs.
+  # Use XDG-compliant config path for npmrc.
   if have npm; then
     log "Setting npm prefix to ~/.local"
+    export NPM_CONFIG_USERCONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/npm/npmrc"
+    mkdir -p "$(dirname "$NPM_CONFIG_USERCONFIG")"
     run npm config set prefix "$HOME/.local"
   fi
 }
@@ -40,5 +47,7 @@ check_node() {
 }
 
 repair_node() {
+  export NPM_CONFIG_USERCONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/npm/npmrc"
+  mkdir -p "$(dirname "$NPM_CONFIG_USERCONFIG")"
   npm config set prefix "$HOME/.local"
 }
