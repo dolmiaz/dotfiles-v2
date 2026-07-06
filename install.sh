@@ -267,10 +267,34 @@ if [[ "$GIT_CONFIG" != "SKIP" ]]; then
     log "Configuring git..."
 
     git_editor="${VISUAL:-${EDITOR:-vim}}"
-    if git --version 2>/dev/null | awk '{ split($3, v, "."); exit ! (v[1] > 2 || (v[1] == 2 && v[2] >= 35)) }'; then
+    git_version="$(git --version 2>/dev/null | awk '{print $3}' || true)"
+    git_major="$(printf '%s\n' "$git_version" | awk -F. '{print $1 + 0}')"
+    git_minor="$(printf '%s\n' "$git_version" | awk -F. '{print $2 + 0}')"
+    _git_version_at_least() {
+        local want_major="$1" want_minor="$2"
+        if [[ "$git_major" -gt "$want_major" ]]; then
+            return 0
+        fi
+        if [[ "$git_major" -eq "$want_major" ]] && [[ "$git_minor" -ge "$want_minor" ]]; then
+            return 0
+        fi
+        return 1
+    }
+
+    if _git_version_at_least 2 35; then
         git_conflict_style="zdiff3"
     else
         git_conflict_style="diff3"
+    fi
+    if [[ "$OS" == "macos" ]] && _git_version_at_least 2 36; then
+        git_enable_fsmonitor=1
+    else
+        git_enable_fsmonitor=0
+    fi
+    if _git_version_at_least 2 37; then
+        git_enable_auto_setup_remote=1
+    else
+        git_enable_auto_setup_remote=0
     fi
 
     if [[ -z "$git_name" ]] || [[ -z "$git_email" ]]; then
@@ -303,6 +327,16 @@ if [[ "$GIT_CONFIG" != "SKIP" ]]; then
         log "[DRY-RUN]   editor     = $git_editor"
         log "[DRY-RUN]   credential = $git_credential_helper"
         log "[DRY-RUN]   conflictstyle = $git_conflict_style"
+        if [[ "$git_enable_fsmonitor" == "1" ]]; then
+            log "[DRY-RUN]   fsmonitor/untrackedcache = enabled"
+        else
+            log "[DRY-RUN]   fsmonitor/untrackedcache = omitted"
+        fi
+        if [[ "$git_enable_auto_setup_remote" == "1" ]]; then
+            log "[DRY-RUN]   push.autoSetupRemote = enabled"
+        else
+            log "[DRY-RUN]   push.autoSetupRemote = omitted"
+        fi
     else
         mkdir -p "$(dirname "$git_config_dest")"
         # Backup existing git config before overwriting.
@@ -340,6 +374,18 @@ if [[ "$GIT_CONFIG" != "SKIP" ]]; then
             git_config_content="$(printf '%s' "$git_config_content" | sed '/^# __BEGIN_MACOS__$/,/^# __END_MACOS__$/d')"
             # Remove LINUX marker lines but keep content between them.
             git_config_content="$(printf '%s' "$git_config_content" | sed -e '/^# __BEGIN_LINUX__$/d' -e '/^# __END_LINUX__$/d')"
+        fi
+
+        # Remove Git-version-sensitive sections when the installed git is too old.
+        if [[ "$git_enable_fsmonitor" == "1" ]]; then
+            git_config_content="$(printf '%s' "$git_config_content" | sed -e '/^# __BEGIN_GIT236__$/d' -e '/^# __END_GIT236__$/d')"
+        else
+            git_config_content="$(printf '%s' "$git_config_content" | sed '/^# __BEGIN_GIT236__$/,/^# __END_GIT236__$/d')"
+        fi
+        if [[ "$git_enable_auto_setup_remote" == "1" ]]; then
+            git_config_content="$(printf '%s' "$git_config_content" | sed -e '/^# __BEGIN_GIT237__$/d' -e '/^# __END_GIT237__$/d')"
+        else
+            git_config_content="$(printf '%s' "$git_config_content" | sed '/^# __BEGIN_GIT237__$/,/^# __END_GIT237__$/d')"
         fi
 
         # Remove LFS section if git-lfs is not installed.

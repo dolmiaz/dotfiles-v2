@@ -298,3 +298,15 @@ Round 3 の「教訓・残課題」に挙げた項目一式を解消。
   `sudo chsh -s "$(command -v zsh)" "$USER"` を実行できるようにした。
 - macOS の C/C++ doctor チェックで `cmake` だけでなく Xcode Command Line Tools
   (`xcode-select -p`) の存在も確認するよう変更。
+
+## 2026-07-07: Round 9 最終微修正
+
+- Git オプションを生成時にバージョンゲート。`core.fsmonitor` / `core.untrackedcache`
+  は Git 2.36 以上、`push.autoSetupRemote` は Git 2.37 以上の場合だけ残すよう
+  テンプレートに GIT236/GIT237 マーカーを追加し、古い Git では該当行を削除。
+- `sudoers.d PATH` は installer が配布しない任意項目として整理し、
+  doctor では存在すれば OK / 無ければ SKIP のみ、`--fix-sudo` 対象外に変更。
+- doctor の OS / package manager 検出ログをオプション解析後に移動し、
+  `--help` は usage のみ、`--quiet` は検出ログなしで実行されるよう変更。
+- `env.d/00-xdg.zsh` の mkdir は read-only HOME 等で zsh 起動時にノイズを出さないよう、
+  各 guarded mkdir に `2>/dev/null || true` を付けてエラーを抑止。

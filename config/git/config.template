@@ -24,7 +24,9 @@
 	rebase = true
 
 [push]
+# __BEGIN_GIT237__
 	autoSetupRemote = true
+# __END_GIT237__
 
 [fetch]
 	prune = true
@@ -53,8 +55,10 @@
 # ── OS-specific: macOS ───────────────────────────────────────
 # __BEGIN_MACOS__
 [core]
+# __BEGIN_GIT236__
 	fsmonitor = true
 	untrackedcache = true
+# __END_GIT236__
 
 [credential]
 	helper = __GIT_CREDENTIAL_HELPER__

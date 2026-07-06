@@ -9,7 +9,7 @@ export XDG_STATE_HOME="${XDG_STATE_HOME:-${HOME}/.local/state}"
 
 # Ensure XDG directories exist
 # (created quietly; install.sh also handles this)
-[[ -d "${XDG_CONFIG_HOME}" ]] || mkdir -p "${XDG_CONFIG_HOME}"
-[[ -d "${XDG_DATA_HOME}" ]]   || mkdir -p "${XDG_DATA_HOME}"
-[[ -d "${XDG_CACHE_HOME}" ]]  || mkdir -p "${XDG_CACHE_HOME}"
-[[ -d "${XDG_STATE_HOME}" ]]  || mkdir -p "${XDG_STATE_HOME}"
+[[ -d "${XDG_CONFIG_HOME}" ]] || mkdir -p "${XDG_CONFIG_HOME}" 2>/dev/null || true
+[[ -d "${XDG_DATA_HOME}" ]]   || mkdir -p "${XDG_DATA_HOME}" 2>/dev/null || true
+[[ -d "${XDG_CACHE_HOME}" ]]  || mkdir -p "${XDG_CACHE_HOME}" 2>/dev/null || true
+[[ -d "${XDG_STATE_HOME}" ]]  || mkdir -p "${XDG_STATE_HOME}" 2>/dev/null || true

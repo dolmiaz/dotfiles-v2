@@ -32,8 +32,6 @@ fi
 if [[ -r "$DOTFILES_DIR/lib/detect.sh" ]]; then
     # shellcheck source=lib/detect.sh
     source "$DOTFILES_DIR/lib/detect.sh"
-    detect_os 2>/dev/null || true
-    detect_pkg_manager 2>/dev/null || true
 fi
 if [[ -r "$DOTFILES_DIR/lib/deploy.sh" ]]; then
     # shellcheck source=lib/deploy.sh
@@ -140,6 +138,22 @@ while (( $# > 0 )); do
             ;;
     esac
 done
+
+if (( QUIET )); then
+    if declare -f detect_os &>/dev/null; then
+        detect_os >/dev/null 2>&1 || true
+    fi
+    if declare -f detect_pkg_manager &>/dev/null; then
+        detect_pkg_manager >/dev/null 2>&1 || true
+    fi
+else
+    if declare -f detect_os &>/dev/null; then
+        detect_os 2>/dev/null || true
+    fi
+    if declare -f detect_pkg_manager &>/dev/null; then
+        detect_pkg_manager 2>/dev/null || true
+    fi
+fi
 
 # ---------- dotfiles-specific check/repair functions --------------------------
 
@@ -333,7 +347,7 @@ CHECKS=(
     "zsh plugins|check_zsh_plugins|repair_zsh_plugins|no"
     "git user config|check_git_user||no"
     "default shell = zsh|check_shell_zsh|repair_shell_zsh|sudo"
-    "sudoers.d PATH|check_sudoers_path||sudo"
+    "sudoers.d PATH|check_sudoers_path||no"
 )
 
 # ---------- output formatting -------------------------------------------------
