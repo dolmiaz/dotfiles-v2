@@ -357,7 +357,7 @@ CHECKS=(
     "npm prefix/cache|check_node|repair_node|no"
     "npm dir ownership|check_npm_ownership|repair_npm_ownership|sudo"
     "~/.npmrc legacy|check_npm_legacy_config|repair_npm_legacy_config|no"
-    "VS Code|check_vscode|repair_vscode|sudo"
+    "VS Code|check_vscode|repair_vscode|no"
     "zsh plugins|check_zsh_plugins|repair_zsh_plugins|no"
     "git user config|check_git_user||no"
     "default shell = zsh|check_shell_zsh|repair_shell_zsh|sudo"
@@ -464,7 +464,7 @@ for entry in "${CHECKS[@]}"; do
     else
         # Check failed -- attempt repair if requested.
         if (( FIX )) && [[ -n "$repair_fn" ]] && declare -f "$repair_fn" &>/dev/null; then
-            if $repair_fn 2>/dev/null; then
+            if $repair_fn; then
                 # Re-verify: a repair that "succeeds" but doesn't actually
                 # fix the underlying check should not be reported as FIXED.
                 recheck_rc=0

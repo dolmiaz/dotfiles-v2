@@ -458,7 +458,9 @@ for file in "$DOTFILES_DIR"/home/.*; do
     # files are backed up and replaced, matching the ZDOTDIR design.
     if [[ "$name" == ".zshrc" ]] && [[ -f "$HOME/.zshrc" ]]; then
         if grep -qF '~/.zshrc — Landing Pad' "$HOME/.zshrc"; then
-            continue
+            if [[ ! -L "$HOME/.zshrc" ]] || [[ "$LINK_MODE" == "1" ]]; then
+                continue
+            fi
         fi
         log "Replacing existing ~/.zshrc with landing pad; previous file will be backed up"
         log "Re-add customizations under ~/.config/zsh/conf.d/ after installation"

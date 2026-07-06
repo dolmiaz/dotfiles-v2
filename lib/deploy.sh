@@ -81,8 +81,8 @@ backup_file() {
 #   MODE can be "link" (default) or "copy".  When MODE is omitted, the global
 #   LINK_MODE variable decides: 1 = link, 0 = copy.
 #
-#   If DEST already exists, it is backed up first (unless it is a symlink that
-#   already points to SOURCE).  DRY_RUN is respected.
+#   If DEST already exists, it is backed up first. In link mode, an existing
+#   symlink that already points to SOURCE is left untouched. DRY_RUN is respected.
 deploy_file() {
     local src="${1:?deploy_file: source required}"
     local dest="${2:?deploy_file: destination required}"
@@ -103,8 +103,9 @@ deploy_file() {
         return 1
     fi
 
-    # If DEST is already a symlink pointing to SRC, nothing to do.
-    if [[ -L "$dest" ]] && [[ "$(readlink "$dest")" == "$src" ]]; then
+    # In link mode, if DEST already points to SRC, nothing to do. Copy mode must
+    # replace even matching symlinks with real files.
+    if [[ "$mode" == "link" ]] && [[ -L "$dest" ]] && [[ "$(readlink "$dest")" == "$src" ]]; then
         log "Already linked: $dest -> $src"
         return 0
     fi
@@ -115,9 +116,8 @@ deploy_file() {
         return 0
     fi
 
-    # Back up existing file at destination (skip only if it's already a
-    # symlink pointing at src -- that case is handled above and returns
-    # earlier, but pass src through in case this ever changes).
+    # Back up existing file at destination. backup_file keeps the existing
+    # policy for symlinks, including matching repo symlinks.
     backup_file "$dest" "$src"
 
     # Ensure parent directory exists.

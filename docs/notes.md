@@ -326,3 +326,15 @@ Round 3 の「教訓・残課題」に挙げた項目一式を解消。
 - VS Code は `code` コマンドがある場合、OS 別の `settings.json` が存在することも
   doctor で確認するようにした。
 - `grep --color=auto` 非互換という指摘は macOS BSD grep で実測反証できたため不採用。
+
+## 2026-07-07: Round 11 修正
+
+- doctor の修復処理で stderr を抑止しないよう変更し、`--fix-sudo` 実行時の
+  sudo パスワードプロンプトや実際のエラーメッセージを表示できるようにした。
+  check / re-check は従来どおり stderr を抑止する。
+- `--link` から通常の copy 配置へ戻せるよう、deploy_file の symlink 早期 return を
+  link mode 限定に変更。copy mode ではリポジトリへの symlink も実ファイルへ置き換える。
+- landing pad `~/.zshrc` は marker があっても copy mode かつ symlink の場合は
+  skip せず再デプロイし、実ファイルへ戻せるようにした。
+- VS Code の doctor 修復は `code` が存在して settings.json が欠ける場合の user-space
+  修復のみなので、plain `--fix` 対象へ戻した。
