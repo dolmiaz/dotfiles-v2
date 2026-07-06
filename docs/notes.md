@@ -381,3 +381,13 @@ Round 3 の「教訓・残課題」に挙げた項目一式を解消。
   失敗として返すよう変更。部分失敗は従来どおり警告のみ。
 - zsh plugin は一部の clone / pull 失敗でも module 失敗として返し、installer の
   failed component list に記録されるようにした。
+
+## 2026-07-07: Round 16 修正
+
+- Rust doctor は XDG 配下の rustup/cargo だけでなく、PATH 上の rustup/cargo
+  （Homebrew 管理など）も installer と同様に OK として扱うようにした。
+- CLI tools installer はパッケージ入手不能と導入失敗を分離。入手不能な tool は
+  手動導入案内だけで継続し、入手可能なのに `pkg_install` が失敗した場合は module
+  失敗として記録するようにした。starship / zoxide の公式 installer 失敗も同様に扱う。
+- Vim の `clipboard` option は `+clipboard` 非対応 build でエラーにならないよう
+  `has('clipboard')` で guard した。

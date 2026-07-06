@@ -80,18 +80,26 @@ install_rust() {
 check_rust() {
   _rust_setup_xdg_env
 
-  local rustup_path cargo_path
+  local rustup_path cargo_path xdg_rustup xdg_cargo
   rustup_path="$(command -v rustup 2>/dev/null || true)"
   cargo_path="$(command -v cargo 2>/dev/null || true)"
+  xdg_rustup="$CARGO_HOME/bin/rustup"
+  xdg_cargo="$CARGO_HOME/bin/cargo"
 
-  [[ -n "$rustup_path" ]] || return 2
-  [[ "$rustup_path" == "$CARGO_HOME/bin/rustup" ]] || {
-    warn "rustup is '$rustup_path', expected '$CARGO_HOME/bin/rustup'"
-    warn "rustup installed by another manager (for example Homebrew) is not managed by these dotfiles; ignore this check or uninstall the other rustup."
+  if [[ -z "$rustup_path" ]] && [[ -x "$xdg_rustup" ]]; then
+    rustup_path="$xdg_rustup"
+  fi
+  if [[ -z "$cargo_path" ]] && [[ -x "$xdg_cargo" ]]; then
+    cargo_path="$xdg_cargo"
+  fi
+
+  [[ -n "$rustup_path" ]] || [[ -n "$cargo_path" ]] || return 2
+  [[ -n "$rustup_path" ]] || {
+    warn "cargo exists but rustup was not found"
     return 1
   }
-  [[ "$cargo_path" == "$CARGO_HOME/bin/cargo" ]] || {
-    warn "cargo is '${cargo_path:-not found}', expected '$CARGO_HOME/bin/cargo'"
+  [[ -n "$cargo_path" ]] || {
+    warn "rustup exists but cargo was not found"
     return 1
   }
   rustup show active-toolchain &>/dev/null || return 1

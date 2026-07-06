@@ -30,7 +30,7 @@ endif
 " ── General ──────────────────────────────────────────────────
 set nocompatible
 set encoding=utf-8
-set fileencoding=utf-8
+setglobal fileencoding=utf-8
 set fileformats=unix,dos,mac
 
 " ── UI ───────────────────────────────────────────────────────
@@ -75,7 +75,9 @@ set shiftround                " Round indent to multiple of shiftwidth
 set backspace=indent,eol,start
 set hidden                    " Allow hidden buffers
 set autoread                  " Auto-reload changed files
-set clipboard=unnamed         " Use system clipboard
+if has('clipboard')
+  set clipboard=unnamed       " Use system clipboard
+endif
 set mouse=a                   " Enable mouse support
 set undofile                  " Persistent undo
 set noswapfile                " Disable swap files (undo is sufficient)

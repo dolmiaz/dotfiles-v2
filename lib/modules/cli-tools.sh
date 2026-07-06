@@ -26,35 +26,43 @@ _cli_tool_installable() {
   fi
 }
 
+_install_pkg_cli_tool() {
+  local tool="$1" manual_url="$2"
+  if declare -f pkg_available &>/dev/null && ! pkg_available "$tool"; then
+    warn "$tool is not available from ${PKG_MANAGER:-package manager}; install it manually ($manual_url)"
+    return 0
+  fi
+  if ! pkg_install "$tool"; then
+    warn "Failed to install $tool from ${PKG_MANAGER:-package manager}"
+    return 1
+  fi
+  return 0
+}
+
 install_cli_tools() {
   log "Installing CLI tools: ${CLI_TOOLS[*]}"
+  local failed=0
 
   # fzf/direnv/eza live in EPEL on Red Hat family systems.
-  if [[ "$OS" == "redhat" ]] && ! pkg_install epel-release; then
+  if [[ "${OS:-}" == "redhat" ]] && ! pkg_install epel-release; then
     warn "Could not enable EPEL -- some CLI tools may be unavailable"
   fi
 
   # ---- eza ----
-  case "$OS" in
-    macos)  if ! pkg_install eza; then warn "eza is not available from $PKG_MANAGER; install it manually (https://eza.rocks)"; fi ;;
-    debian) if ! pkg_install eza; then warn "eza is not available from $PKG_MANAGER; install it manually (https://eza.rocks)"; fi ;;       # eza is in recent Ubuntu/Debian repos
-    redhat) if ! pkg_install eza; then warn "eza is not available from $PKG_MANAGER; install it manually (https://eza.rocks)"; fi ;;
-  esac
+  _install_pkg_cli_tool eza "https://eza.rocks" || failed=1
 
   # ---- fzf ----
-  if ! pkg_install fzf; then
-    warn "fzf is not available from $PKG_MANAGER; install it manually (https://github.com/junegunn/fzf)"
-  fi
+  _install_pkg_cli_tool fzf "https://github.com/junegunn/fzf" || failed=1
 
   # ---- direnv ----
-  if ! pkg_install direnv; then
-    warn "direnv is not available from $PKG_MANAGER; install it manually (https://direnv.net)"
-  fi
+  _install_pkg_cli_tool direnv "https://direnv.net" || failed=1
 
   # ---- starship (official installer, all platforms) ----
   if ! have starship; then
     log "Installing starship via official installer"
-    fetch_and_run_installer https://starship.rs/install.sh -y
+    if ! fetch_and_run_installer https://starship.rs/install.sh -y; then
+      failed=1
+    fi
     if ! have starship && [[ ! -x /usr/local/bin/starship ]] && [[ ! -x "$HOME/.local/bin/starship" ]]; then
       warn "starship installation appears to have failed"
     fi
@@ -63,11 +71,15 @@ install_cli_tools() {
   # ---- zoxide (official installer, all platforms) ----
   if ! have zoxide; then
     log "Installing zoxide via official installer"
-    fetch_and_run_installer https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh
+    if ! fetch_and_run_installer https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh; then
+      failed=1
+    fi
     if ! have zoxide && [[ ! -x /usr/local/bin/zoxide ]] && [[ ! -x "$HOME/.local/bin/zoxide" ]]; then
       warn "zoxide installation appears to have failed"
     fi
   fi
+
+  return "$failed"
 }
 
 # Return: 0 = OK, 1 = FAIL (partially installed), 2 = SKIP (none installed)
