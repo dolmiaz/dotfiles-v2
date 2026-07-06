@@ -361,3 +361,12 @@ Round 3 の「教訓・残課題」に挙げた項目一式を解消。
   copy deploy に落として実ファイルへ置き換えるようにした。
 - doctor の env.d / conf.d 修復は `cp -rn` をやめ、missing / symlink / unreadable な
   entry を個別に copy redeploy して broken symlink も置き換えられるようにした。
+
+## 2026-07-07: Round 14 修正
+
+- git config 生成時に既存 `~/.config/git/config` が symlink の場合、backup 後に
+  symlink 自体を削除してから通常ファイルとして生成するよう変更。machine-local な
+  git config が symlink 先を破壊しないようにした。
+- doctor の CLI tools 検査でパッケージ入手可否を考慮。`pkg_available` を追加し、
+  Ubuntu 22.04 の `eza` のように配布元に存在せず fallback installer もないツールは
+  恒久 FAIL にせず、他の repairable な欠落がある場合だけ FAIL にするようにした。

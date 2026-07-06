@@ -7,6 +7,25 @@ set -euo pipefail
 
 CLI_TOOLS=(eza fzf zoxide starship direnv)
 
+_cli_tool_has_fallback_installer() {
+  case "$1" in
+    starship|zoxide) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+_cli_tool_installable() {
+  local tool="$1"
+  if _cli_tool_has_fallback_installer "$tool"; then
+    return 0
+  fi
+  if declare -f pkg_available &>/dev/null; then
+    pkg_available "$tool"
+  else
+    return 0
+  fi
+}
+
 install_cli_tools() {
   log "Installing CLI tools: ${CLI_TOOLS[*]}"
 
@@ -54,7 +73,10 @@ install_cli_tools() {
 # Return: 0 = OK, 1 = FAIL (partially installed), 2 = SKIP (none installed)
 check_cli_tools() {
   local missing=()
+  local installable_missing=()
+  local unavailable_missing=()
   local found=0
+  local cmd
   for cmd in "${CLI_TOOLS[@]}"; do
     if have "$cmd"; then
       found=$((found + 1))
@@ -68,11 +90,22 @@ check_cli_tools() {
     return 2
   fi
 
-  # If at least one is installed but others are missing, that is a failure
-  if (( ${#missing[@]} > 0 )); then
-    warn "Missing CLI tools: ${missing[*]}"
+  for cmd in "${missing[@]}"; do
+    if _cli_tool_installable "$cmd"; then
+      installable_missing+=("$cmd")
+    else
+      unavailable_missing+=("$cmd")
+    fi
+  done
+
+  # Missing tools with a package candidate or fallback installer are repairable.
+  if (( ${#installable_missing[@]} > 0 )); then
+    warn "Missing CLI tools: ${installable_missing[*]}"
     return 1
   fi
+
+  # If the only missing tools are not available from this distro's package
+  # manager and have no fallback installer, treat the configured set as healthy.
   return 0
 }
 

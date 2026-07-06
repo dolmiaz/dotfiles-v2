@@ -112,6 +112,35 @@ pkg_run_priv() {
     fi
 }
 
+# pkg_available PACKAGE
+#   Return 0 if PACKAGE appears installable by the detected package manager.
+#   Unknown package managers assume available so checks stay conservative.
+pkg_available() {
+    local pkg="${1:-}"
+    [[ -n "$pkg" ]] || return 1
+
+    case "${PKG_MANAGER:-}" in
+        brew)
+            if HOMEBREW_CACHE="${HOMEBREW_CACHE:-${TMPDIR:-/tmp}/homebrew-cache}" brew info "$pkg" &>/dev/null; then
+                return 0
+            fi
+            brew list --versions "$pkg" &>/dev/null
+            ;;
+        apt)
+            apt-cache policy "$pkg" 2>/dev/null | grep -q 'Candidate: [0-9]'
+            ;;
+        dnf)
+            dnf -q info "$pkg" &>/dev/null
+            ;;
+        yum)
+            yum -q info "$pkg" &>/dev/null
+            ;;
+        *)
+            return 0
+            ;;
+    esac
+}
+
 # ---------- package install wrapper -------------------------------------------
 
 # pkg_install PACKAGE...

@@ -361,83 +361,98 @@ if [[ "$GIT_CONFIG" != "SKIP" ]]; then
     else
         mkdir -p "$(dirname "$git_config_dest")"
         # Backup existing git config before overwriting.
-        backup_file "$git_config_dest"
-
-        # Read template content.
-        git_config_content="$(cat "$template")"
-
-        local_name="$(escape_sed "$(escape_gitconfig_string "$git_name_value")")"
-        local_email="$(escape_sed "$(escape_gitconfig_string "$git_email_value")")"
-        local_editor="$(escape_sed "$git_editor_value")"
-        local_cred="$(escape_sed "$git_credential_helper_value")"
-        local_conflict_style="$(escape_sed "$git_conflict_style_value")"
-
-        git_config_content="$(printf '%s' "$git_config_content" | sed \
-            -e "s/__GIT_USER_NAME__/$local_name/g" \
-            -e "s/__GIT_USER_EMAIL__/$local_email/g" \
-            -e "s/__GIT_EDITOR__/$local_editor/g" \
-            -e "s/__GIT_CREDENTIAL_HELPER__/$local_cred/g" \
-            -e "s/__GIT_CONFLICT_STYLE__/$local_conflict_style/g")"
-
-        # Remove OS-specific sections based on detected OS.
-        if [[ "$OS" == "macos" ]]; then
-            # Remove LINUX section (including marker lines).
-            git_config_content="$(printf '%s' "$git_config_content" | sed '/^# __BEGIN_LINUX__$/,/^# __END_LINUX__$/d')"
-            # Remove MACOS marker lines but keep content between them.
-            git_config_content="$(printf '%s' "$git_config_content" | sed -e '/^# __BEGIN_MACOS__$/d' -e '/^# __END_MACOS__$/d')"
-        else
-            # Remove MACOS section (including marker lines).
-            git_config_content="$(printf '%s' "$git_config_content" | sed '/^# __BEGIN_MACOS__$/,/^# __END_MACOS__$/d')"
-            # Remove LINUX marker lines but keep content between them.
-            git_config_content="$(printf '%s' "$git_config_content" | sed -e '/^# __BEGIN_LINUX__$/d' -e '/^# __END_LINUX__$/d')"
+        git_config_write_ok=1
+        if ! backup_file "$git_config_dest"; then
+            warn "Backup failed -- skipping git config generation"
+            git_config_write_ok=0
         fi
 
-        # Remove Git-version-sensitive sections when the installed git is too old.
-        if [[ "$git_enable_untrackedcache" == "1" ]]; then
-            git_config_content="$(printf '%s' "$git_config_content" | sed -e '/^# __BEGIN_GIT236__$/d' -e '/^# __END_GIT236__$/d')"
-        else
-            git_config_content="$(printf '%s' "$git_config_content" | sed '/^# __BEGIN_GIT236__$/,/^# __END_GIT236__$/d')"
-        fi
-        if [[ "$git_enable_auto_setup_remote" == "1" ]]; then
-            git_config_content="$(printf '%s' "$git_config_content" | sed -e '/^# __BEGIN_GIT237__$/d' -e '/^# __END_GIT237__$/d')"
-        else
-            git_config_content="$(printf '%s' "$git_config_content" | sed '/^# __BEGIN_GIT237__$/,/^# __END_GIT237__$/d')"
-        fi
-
-        # Remove LFS section if git-lfs is not installed.
-        if ! have git-lfs; then
-            git_config_content="$(printf '%s' "$git_config_content" | sed '/^# __BEGIN_LFS__$/,/^# __END_LFS__$/d')"
-        else
-            git_config_content="$(printf '%s' "$git_config_content" | sed -e '/^# __BEGIN_LFS__$/d' -e '/^# __END_LFS__$/d')"
-        fi
-
-        # Remove 1Password section if the app is not installed, or if it is
-        # installed but the SSH agent has no signing key available (commit
-        # signing would otherwise fail with "user.signingkey ... needs to be
-        # configured").
-        if [[ ! -d "/Applications/1Password.app" ]] && ! have op; then
-            git_config_content="$(printf '%s' "$git_config_content" | sed '/^# __BEGIN_1PASSWORD__$/,/^# __END_1PASSWORD__$/d')"
-        else
-            _op_sock="$HOME/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"
-            git_signing_key=""
-            if [[ -S "$_op_sock" ]]; then
-                git_signing_key="$(SSH_AUTH_SOCK="$_op_sock" ssh-add -L 2>/dev/null | head -n 1 || true)"
-            fi
-            git_signing_key="$(sanitize_first_line "$git_signing_key")"
-
-            if [[ -n "$git_signing_key" ]]; then
-                local_signing_key="$(escape_sed "$(sanitize_first_line "key::$git_signing_key")")"
-                git_config_content="$(printf '%s' "$git_config_content" | sed -e '/^# __BEGIN_1PASSWORD__$/d' -e '/^# __END_1PASSWORD__$/d')"
-                git_config_content="$(printf '%s' "$git_config_content" | sed \
-                    -e "s/__GIT_SIGNING_KEY__/$local_signing_key/g")"
+        if [[ "$git_config_write_ok" == "1" ]] && [[ -L "$git_config_dest" ]]; then
+            if run rm -f "$git_config_dest"; then
+                log "Removed git config symlink before generating machine-local config"
             else
-                warn "1Password SSH agent has no keys -- commit signing disabled in generated git config"
-                git_config_content="$(printf '%s' "$git_config_content" | sed '/^# __BEGIN_1PASSWORD__$/,/^# __END_1PASSWORD__$/d')"
+                warn "Failed to remove git config symlink -- skipping git config generation"
+                git_config_write_ok=0
             fi
         fi
 
-        printf '%s\n' "$git_config_content" > "$git_config_dest"
-        log "Generated: $git_config_dest"
+        if [[ "$git_config_write_ok" == "1" ]]; then
+            # Read template content.
+            git_config_content="$(cat "$template")"
+
+            local_name="$(escape_sed "$(escape_gitconfig_string "$git_name_value")")"
+            local_email="$(escape_sed "$(escape_gitconfig_string "$git_email_value")")"
+            local_editor="$(escape_sed "$git_editor_value")"
+            local_cred="$(escape_sed "$git_credential_helper_value")"
+            local_conflict_style="$(escape_sed "$git_conflict_style_value")"
+
+            git_config_content="$(printf '%s' "$git_config_content" | sed \
+                -e "s/__GIT_USER_NAME__/$local_name/g" \
+                -e "s/__GIT_USER_EMAIL__/$local_email/g" \
+                -e "s/__GIT_EDITOR__/$local_editor/g" \
+                -e "s/__GIT_CREDENTIAL_HELPER__/$local_cred/g" \
+                -e "s/__GIT_CONFLICT_STYLE__/$local_conflict_style/g")"
+
+            # Remove OS-specific sections based on detected OS.
+            if [[ "$OS" == "macos" ]]; then
+                # Remove LINUX section (including marker lines).
+                git_config_content="$(printf '%s' "$git_config_content" | sed '/^# __BEGIN_LINUX__$/,/^# __END_LINUX__$/d')"
+                # Remove MACOS marker lines but keep content between them.
+                git_config_content="$(printf '%s' "$git_config_content" | sed -e '/^# __BEGIN_MACOS__$/d' -e '/^# __END_MACOS__$/d')"
+            else
+                # Remove MACOS section (including marker lines).
+                git_config_content="$(printf '%s' "$git_config_content" | sed '/^# __BEGIN_MACOS__$/,/^# __END_MACOS__$/d')"
+                # Remove LINUX marker lines but keep content between them.
+                git_config_content="$(printf '%s' "$git_config_content" | sed -e '/^# __BEGIN_LINUX__$/d' -e '/^# __END_LINUX__$/d')"
+            fi
+
+            # Remove Git-version-sensitive sections when the installed git is too old.
+            if [[ "$git_enable_untrackedcache" == "1" ]]; then
+                git_config_content="$(printf '%s' "$git_config_content" | sed -e '/^# __BEGIN_GIT236__$/d' -e '/^# __END_GIT236__$/d')"
+            else
+                git_config_content="$(printf '%s' "$git_config_content" | sed '/^# __BEGIN_GIT236__$/,/^# __END_GIT236__$/d')"
+            fi
+            if [[ "$git_enable_auto_setup_remote" == "1" ]]; then
+                git_config_content="$(printf '%s' "$git_config_content" | sed -e '/^# __BEGIN_GIT237__$/d' -e '/^# __END_GIT237__$/d')"
+            else
+                git_config_content="$(printf '%s' "$git_config_content" | sed '/^# __BEGIN_GIT237__$/,/^# __END_GIT237__$/d')"
+            fi
+
+            # Remove LFS section if git-lfs is not installed.
+            if ! have git-lfs; then
+                git_config_content="$(printf '%s' "$git_config_content" | sed '/^# __BEGIN_LFS__$/,/^# __END_LFS__$/d')"
+            else
+                git_config_content="$(printf '%s' "$git_config_content" | sed -e '/^# __BEGIN_LFS__$/d' -e '/^# __END_LFS__$/d')"
+            fi
+
+            # Remove 1Password section if the app is not installed, or if it is
+            # installed but the SSH agent has no signing key available (commit
+            # signing would otherwise fail with "user.signingkey ... needs to be
+            # configured").
+            if [[ ! -d "/Applications/1Password.app" ]] && ! have op; then
+                git_config_content="$(printf '%s' "$git_config_content" | sed '/^# __BEGIN_1PASSWORD__$/,/^# __END_1PASSWORD__$/d')"
+            else
+                _op_sock="$HOME/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"
+                git_signing_key=""
+                if [[ -S "$_op_sock" ]]; then
+                    git_signing_key="$(SSH_AUTH_SOCK="$_op_sock" ssh-add -L 2>/dev/null | head -n 1 || true)"
+                fi
+                git_signing_key="$(sanitize_first_line "$git_signing_key")"
+
+                if [[ -n "$git_signing_key" ]]; then
+                    local_signing_key="$(escape_sed "$(sanitize_first_line "key::$git_signing_key")")"
+                    git_config_content="$(printf '%s' "$git_config_content" | sed -e '/^# __BEGIN_1PASSWORD__$/d' -e '/^# __END_1PASSWORD__$/d')"
+                    git_config_content="$(printf '%s' "$git_config_content" | sed \
+                        -e "s/__GIT_SIGNING_KEY__/$local_signing_key/g")"
+                else
+                    warn "1Password SSH agent has no keys -- commit signing disabled in generated git config"
+                    git_config_content="$(printf '%s' "$git_config_content" | sed '/^# __BEGIN_1PASSWORD__$/,/^# __END_1PASSWORD__$/d')"
+                fi
+            fi
+
+            printf '%s\n' "$git_config_content" > "$git_config_dest"
+            log "Generated: $git_config_dest"
+        fi
     fi
 
     # Deploy git ignore file.
