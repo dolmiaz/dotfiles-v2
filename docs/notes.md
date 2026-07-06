@@ -413,3 +413,10 @@ Round 3 の「教訓・残課題」に挙げた項目一式を解消。
 - VS Code 拡張導入は一部失敗でも module 失敗として返し、全 extension group を
   試行したうえで installer の failed component list に反映するようにした。
   これにより VS Code のサイレント未導入や拡張の部分欠落を見落とさない。
+
+## 2026-07-07: Round 19 修正
+
+- CLI tools の入手可否判定は `pkg_install` を試した後に行う順序へ変更した。
+  `apt-get update` 前の空メタデータで `eza` などを誤って入手不能扱いにする問題を防ぐ。
+- starship / zoxide / rustup / uv の公式 installer は、dry-run 以外で導入後の
+  binary post-check に失敗した場合、警告だけでなく module 失敗として返すようにした。

@@ -28,15 +28,17 @@ _cli_tool_installable() {
 
 _install_pkg_cli_tool() {
   local tool="$1" manual_url="$2"
+  if pkg_install "$tool"; then
+    return 0
+  fi
+
   if declare -f pkg_available &>/dev/null && ! pkg_available "$tool"; then
     warn "$tool is not available from ${PKG_MANAGER:-package manager}; install it manually ($manual_url)"
     return 0
   fi
-  if ! pkg_install "$tool"; then
-    warn "Failed to install $tool from ${PKG_MANAGER:-package manager}"
-    return 1
-  fi
-  return 0
+
+  warn "Failed to install $tool from ${PKG_MANAGER:-package manager}"
+  return 1
 }
 
 install_cli_tools() {
@@ -63,8 +65,9 @@ install_cli_tools() {
     if ! fetch_and_run_installer https://starship.rs/install.sh -y; then
       failed=1
     fi
-    if ! have starship && [[ ! -x /usr/local/bin/starship ]] && [[ ! -x "$HOME/.local/bin/starship" ]]; then
+    if [[ "${DRY_RUN:-0}" != "1" ]] && ! have starship && [[ ! -x /usr/local/bin/starship ]] && [[ ! -x "$HOME/.local/bin/starship" ]]; then
       warn "starship installation appears to have failed"
+      failed=1
     fi
   fi
 
@@ -74,8 +77,9 @@ install_cli_tools() {
     if ! fetch_and_run_installer https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh; then
       failed=1
     fi
-    if ! have zoxide && [[ ! -x /usr/local/bin/zoxide ]] && [[ ! -x "$HOME/.local/bin/zoxide" ]]; then
+    if [[ "${DRY_RUN:-0}" != "1" ]] && ! have zoxide && [[ ! -x /usr/local/bin/zoxide ]] && [[ ! -x "$HOME/.local/bin/zoxide" ]]; then
       warn "zoxide installation appears to have failed"
+      failed=1
     fi
   fi
 

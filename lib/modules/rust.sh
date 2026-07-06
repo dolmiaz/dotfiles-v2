@@ -70,9 +70,10 @@ install_rust() {
   fi
 
   log "Installing Rust via rustup (--no-modify-path)"
-  fetch_and_run_installer https://sh.rustup.rs -y --no-modify-path
-  if ! have rustup && [[ ! -x "${CARGO_HOME:-$HOME/.cargo}/bin/rustup" ]]; then
+  fetch_and_run_installer https://sh.rustup.rs -y --no-modify-path || return 1
+  if [[ "${DRY_RUN:-0}" != "1" ]] && ! have rustup && [[ ! -x "${CARGO_HOME:-${XDG_DATA_HOME:-$HOME/.local/share}/cargo}/bin/rustup" ]]; then
     warn "rustup installation appears to have failed"
+    return 1
   fi
 }
 

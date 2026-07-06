@@ -11,9 +11,10 @@ install_uv() {
   fi
 
   log "Installing uv via official installer"
-  fetch_and_run_installer https://astral.sh/uv/install.sh
-  if ! have uv && [[ ! -x /usr/local/bin/uv ]] && [[ ! -x "$HOME/.local/bin/uv" ]]; then
+  fetch_and_run_installer https://astral.sh/uv/install.sh || return 1
+  if [[ "${DRY_RUN:-0}" != "1" ]] && ! have uv && [[ ! -x /usr/local/bin/uv ]] && [[ ! -x "$HOME/.local/bin/uv" ]]; then
     warn "uv installation appears to have failed"
+    return 1
   fi
 }
 
