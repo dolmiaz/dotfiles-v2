@@ -92,3 +92,39 @@ README編集禁止のため、push前にユーザーに確認する。
   サマリブロック表示確認、doctor.sh の SKIP 表示と exit code 動作確認
 - 既知の軽微事項（記録のみ）: dry-run 時に deploy_file が [DRY-RUN] 行に続けて
   「Copied:」ログを出す（実コピーはしていない。従来からの表示上の紛らわしさ）
+
+## 2026-07-06: npm EACCES 障害対応と関連堅牢化（Round 3）
+
+### 障害内容
+- `npm install -g` が EACCES で失敗。原因の複合: root 所有の `~/.npm`、壊れた cache、
+  npmrc の `prefix=~/.local` が nvm と衝突、lazy-load 前後に npm が root 所有の
+  `/usr/local/bin/npm`（旧 Node.js pkg の残骸）へ落ちる
+
+### 応急修正（別セッション）+ 本ラウンドのレビュー修正
+- npmrc: `cache=~/.cache/npm` のみの最小形に（prefix 行を削除）
+- node.sh: `_ensure_npm_prefix_config` 導入 — 非 nvm 環境は npmrc に prefix を書き戻し
+  （bash/cron からも有効）、nvm 環境は prefix 行を削除。cache も永続化（アップグレード経路対応）。
+  `check_node` は env 非依存で永続設定を検査（自己充足チェックの排除）
+- doctor: `npm prefix/cache` に改名 + `npm dir ownership`（root 所有検知、--fix-sudo で chown）
+  + `~/.npmrc legacy`（prefix/globalconfig 競合検知・修復）を追加
+- env.d/10-node.zsh: nvm 存在時に default バージョンの bin を静的 PATH 追加
+  （非対話 zsh でも nvm の npm に解決。~/.local/bin より前に配置）
+- .zprofile: 独自 path_helper 呼び出しを削除し、末尾で env.d を再 source
+  → /etc/zprofile の path_helper による PATH 降格を解消（Round 1 指摘の恒久対応。
+  実機で git が brew 版に解決するようになった）
+- 20-nvm.zsh: `--no-use` + default alias ガード + NVM_BIN の PATH 復帰 + 非TTY補完抑止
+- rust.sh: CARGO_HOME/RUSTUP_HOME の既存 env 尊重、XDG 移行はデフォルトパスのみ
+- vscode.sh: macOS app bundle CLI フォールバック / starship.toml 刷新（警告なし確認済み）
+
+### 検証
+- macOS 実機: `zsh -lc` / `TERM=dumb zsh -lic` とも npm が nvm 版（v23.11.0）に解決、
+  `npm install -g @openai/codex --dry-run` exit 0、doctor 17 passed 2 skipped
+- Ubuntu 24.04 コンテナ: 非 nvm（prefix 書き戻し・素の bash で有効）/ nvm（prefix 自動除去・
+  非対話 zsh で nvm 解決）/ legacy npmrc 修復 / 所有権検知・修復 の 7 シナリオ合格
+- Codex xhigh: 初回 SHIP 不可（HIGH: cache 永続化漏れ、MEDIUM: ~/.local/bin が nvm を
+  シャドウ、LOW: grep の空白許容）→ 3件修正後に **SHIP 判定**
+
+### 教訓・残課題
+- sandbox 環境で npm を実行すると EPERM が「root-owned files」と誤診される（検証時の注意）
+- Round 1 指摘の未対応分は別タスク: RHEL9 curl 競合、curl|sh 失敗マスク、TTY なし確認素通り、
+  apt update 未実行、ls エイリアス、VS Code settings.json 配置先、doctor の repair errexit

@@ -1,68 +1,175 @@
-# Starship prompt configuration
-# https://starship.rs/config/
+"$schema" = 'https://starship.rs/config-schema.json'
 
-# Timeout for commands executed by starship (ms)
-command_timeout = 1000
+add_newline = false
+command_timeout = 1200
+scan_timeout = 30
 
-# Add a blank line between prompts
-add_newline = true
+# 左: 場所 / Git / 開発環境 / 入力記号
+format = '$username$hostname$directory$git_branch$git_status$git_state$git_metrics${custom.git_user}$package$nodejs$python$ruby$rust$golang$direnv$docker_context$conda$container$character'
 
-# Prompt format
-format = """
-$directory\
-$git_branch\
-$git_status\
-$python\
-$nodejs\
-$rust\
-$golang\
-$docker_context\
-$cmd_duration\
-$line_break\
-$character"""
+# 右: 直前コマンドの結果 / 実行時間 / バックグラウンドジョブ
+right_format = '$status$cmd_duration$jobs'
+
+continuation_prompt = '∙ '
 
 [character]
-success_symbol = "[>](bold green)"
-error_symbol = "[>](bold red)"
-vimcmd_symbol = "[<](bold green)"
+success_symbol = '[❯](bold green)'
+error_symbol = '[✗](bold red)'
+vimcmd_symbol = '[❮](bold green)'
+
+[username]
+format = '[$user]($style)@'
+style_user = 'yellow bold'
+style_root = 'red bold'
+show_always = false
+
+[hostname]
+format = '[$ssh_symbol$hostname]($style) '
+style = 'cyan bold'
+ssh_only = true
+trim_at = '.local'
 
 [directory]
-truncation_length = 4
+format = '[$path]($style)[$read_only]($read_only_style) '
+style = 'cyan bold'
+repo_root_style = 'cyan bold underline'
+repo_root_format = '[$before_root_path]($before_repo_root_style)[$repo_root]($repo_root_style)[$path]($style)[$read_only]($read_only_style) '
+truncation_length = 3
+truncation_symbol = '…/'
 truncate_to_repo = true
-style = "bold cyan"
+read_only = ' '
+read_only_style = 'red'
 
 [git_branch]
-format = "[$symbol$branch(:$remote_branch)]($style) "
-symbol = " "
-style = "bold purple"
+symbol = ' '
+format = '[$symbol$branch(:$remote_branch)]($style) '
+style = 'purple bold'
+truncation_length = 32
+truncation_symbol = '…'
 
 [git_status]
 format = '([$all_status$ahead_behind]($style) )'
-style = "bold red"
+style = 'red bold'
+conflicted = '≠${count}'
+ahead = '⇡${count}'
+behind = '⇣${count}'
+diverged = '⇕⇡${ahead_count}⇣${behind_count}'
+untracked = '?${count}'
+stashed = '≡${count}'
+modified = '!${count}'
+staged = '+${count}'
+renamed = '»${count}'
+deleted = '✘${count}'
+typechanged = '↻${count}'
+up_to_date = ''
 
-[cmd_duration]
-min_time = 3000
-format = "[$duration]($style) "
-style = "bold yellow"
+[git_state]
+format = '[$state( $progress_current/$progress_total)]($style) '
+style = 'yellow bold'
 
-[python]
-format = '[${symbol}${pyenv_prefix}(${version} )(\($virtualenv\) )]($style)'
-symbol = " "
+[git_metrics]
+disabled = false
+format = '([+$added]($added_style) )([-$deleted]($deleted_style) )'
+added_style = 'green bold'
+deleted_style = 'red bold'
+only_nonzero_diffs = true
+
+[custom.git_user]
+description = 'Git identity used in this repository'
+command = 'git config --get user.name'
+when = 'git config --get user.name >/dev/null 2>&1'
+require_repo = true
+symbol = '👤 '
+format = '[$symbol$output]($style) '
+style = 'blue bold'
+
+[package]
+symbol = '󰏗 '
+format = '[$symbol$version]($style) '
+style = 'bold 208'
+display_private = false
 
 [nodejs]
-format = "[$symbol($version )]($style)"
-symbol = " "
-detect_files = ["package.json", ".node-version"]
+disabled = false
+symbol = ' '
+format = '[$symbol$version]($style) '
+style = 'green bold'
+detect_extensions = ['js', 'mjs', 'cjs', 'ts', 'mts', 'cts']
+detect_files = ['package.json', '.node-version', '.nvmrc', 'package-lock.json', 'pnpm-lock.yaml', 'yarn.lock', 'bun.lock', 'bun.lockb']
+detect_folders = ['node_modules']
+
+[python]
+symbol = ' '
+format = '[${symbol}${pyenv_prefix}${version}( \($virtualenv\))]($style) '
+style = 'yellow bold'
+python_binary = ['python3', 'python']
+detect_extensions = ['py', 'ipynb']
+detect_files = ['pyproject.toml', 'requirements.txt', 'setup.py', 'tox.ini', 'Pipfile', '__init__.py', '.python-version']
+detect_folders = []
+
+[ruby]
+symbol = ' '
+format = '[$symbol$version]($style) '
+style = 'red bold'
 
 [rust]
-format = "[$symbol($version )]($style)"
-symbol = " "
+symbol = ' '
+format = '[$symbol$version]($style) '
+style = 'red bold'
 
 [golang]
-format = "[$symbol($version )]($style)"
-symbol = " "
+symbol = ' '
+format = '[$symbol$version( $mod_version)]($style) '
+style = 'cyan bold'
+
+[direnv]
+disabled = false
+symbol = '󰙨 '
+format = '[$symbol$loaded/$allowed]($style) '
+style = 'orange bold'
+allowed_msg = 'ok'
+not_allowed_msg = 'no'
+denied_msg = 'deny'
+loaded_msg = 'on'
+unloaded_msg = 'off'
 
 [docker_context]
-format = "[$symbol$context]($style) "
-symbol = " "
+symbol = ' '
+format = '[$symbol$context]($style) '
+style = 'blue bold'
 only_with_files = true
+
+[conda]
+symbol = ' '
+format = '[$symbol$environment]($style) '
+style = 'green bold'
+ignore_base = true
+truncation_length = 1
+
+[container]
+symbol = ''
+format = '[$symbol $name]($style) '
+style = 'red bold dimmed'
+
+[status]
+disabled = false
+format = '[$symbol$status]($style) '
+symbol = '✗ '
+not_found_symbol = 'nf '
+not_executable_symbol = 'nx '
+sigint_symbol = 'int '
+signal_symbol = 'sig '
+style = 'red bold'
+
+[cmd_duration]
+min_time = 1000
+format = '[took $duration]($style) '
+style = 'yellow bold'
+show_milliseconds = false
+
+[jobs]
+symbol = '✦'
+format = '[$symbol$number]($style) '
+style = 'blue bold'
+symbol_threshold = 1
+number_threshold = 1

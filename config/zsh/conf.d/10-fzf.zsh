@@ -20,6 +20,10 @@ if (( $+commands[fd] )); then
 fi
 
 # Load fzf key bindings and completion
+# Skip this in interactive-but-non-TTY sessions such as automated startup
+# checks; fzf's zsh integration toggles the zle option internally.
+[[ -t 0 && -t 1 ]] || return 0
+
 # fzf 0.48+ uses this path; older versions use the shell script
 if [[ -r "${XDG_CONFIG_HOME:-$HOME/.config}/fzf/fzf.zsh" ]]; then
   source "${XDG_CONFIG_HOME:-$HOME/.config}/fzf/fzf.zsh"
