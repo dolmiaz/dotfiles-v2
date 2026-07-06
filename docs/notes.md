@@ -66,3 +66,25 @@ README編集禁止のため、push前にユーザーに確認する。
 ### 総評（Codex）
 アーキテクチャの骨格（XDG、ZDOTDIR landing pad、モジュラー zsh、install_/check_/repair_ 三点セット）は
 適切。bash 3.2 問題と状態管理（冪等 copy、doctor 整合、ロールバック）を解消すれば堅実なインストーラになる。
+
+## 2026-07-06: UX改善 + README刷新 + Round 1 指摘修正（3エージェント並列）
+
+### 実装内容
+- **install.sh UX**: 全質問（コンポーネント太字表示・git識別情報・chsh）を先に解決 →
+  インストールサマリ一覧表示 → `Proceed with installation? [Y/n]` の最終確認 → 確認通過後にのみ実行。
+  拒否時は無変更で exit 0。--yes は最終確認も自動承認
+- **bash 3.2 互換**: prompt.sh の `${var^^}` を tr に置換。macOS 標準 /bin/bash で全プロファイル動作確認
+- **copy 冪等化**: deploy_file が内容一致（cmp -s）ならスキップ（`Up to date` 表示）
+- **早期エラー**: パッケージマネージャ不在時は導入手順を表示して即終了
+- **doctor.sh 3状態化**: check_* が 0=OK / 1=FAIL / 2=SKIP。未インストールは SKIP 表示、
+  SKIP は修復対象外かつ exit 1 に寄与しない。sudoers.d は SKIP (optional) に変更
+- **README**: 日本語で全面刷新（外部ユーザー向け: プロファイル比較表、コンポーネント詳細、
+  オプション、対話フロー、導入後の構成、冪等性、既知の制限）
+
+### Round 2 レビュー結果（監督者 + Codex xhigh）
+- Codex xhigh: **SHIP 判定**。HIGH/MEDIUM なし、LOW 2件（README の --fix 表現、
+  git config 生成物の冪等性例外の注記漏れ）→ 統合時に文言修正済み
+- 監督者検証: bash -n / zsh -n 全パス、/bin/bash 3.2 で --dry-run --yes ×3プロファイル exit 0、
+  サマリブロック表示確認、doctor.sh の SKIP 表示と exit code 動作確認
+- 既知の軽微事項（記録のみ）: dry-run 時に deploy_file が [DRY-RUN] 行に続けて
+  「Copied:」ログを出す（実コピーはしていない。従来からの表示上の紛らわしさ）

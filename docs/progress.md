@@ -31,4 +31,15 @@
 | 3 | lib/modules/*.sh | 完了 |
 | 4 | install.sh + doctor.sh | 完了 |
 | 5 | Codex xhigh レビュー + 修正 | 完了 |
-| 6 | 最終確認 | 作業中 |
+| 6 | 最終確認 | 完了 |
+
+## 追加ラウンド（2026-07-06: UX改善 + README刷新）
+
+- [x] Round 1 設計レビュー（監督者 + Codex xhigh）
+- [x] bash 3.2 互換性修正（macOS 標準 bash で動作）
+- [x] copy モード冪等化（内容一致ならスキップ）
+- [x] インストールサマリ + 最終確認フロー（拒否時は無変更で中止）
+- [x] コンポーネント名の太字表示
+- [x] doctor.sh 3状態化（OK / FAIL / SKIP）
+- [x] README を日本語で全面刷新（外部ユーザー向け）
+- [x] Round 2 最終レビュー（Codex xhigh: SHIP 判定）
