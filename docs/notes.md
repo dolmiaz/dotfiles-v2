@@ -128,3 +128,67 @@ README編集禁止のため、push前にユーザーに確認する。
 - sandbox 環境で npm を実行すると EPERM が「root-owned files」と誤診される（検証時の注意）
 - Round 1 指摘の未対応分は別タスク: RHEL9 curl 競合、curl|sh 失敗マスク、TTY なし確認素通り、
   apt update 未実行、ls エイリアス、VS Code settings.json 配置先、doctor の repair errexit
+
+## 2026-07-06: Round 3 積み残し対応（Round 4）
+
+Round 3 の「教訓・残課題」に挙げた項目一式を解消。
+
+### パッケージマネージャの堅牢化
+- `pkg_run_priv` を新設（root 実行時は素通し、非root は sudo 必須・なければ die）。
+  apt/dnf/yum の全経路と node.sh/vscode.sh の `sudo` 直書きを置き換え
+- apt: `apt` → `apt-get` に統一し、プロセス内で一度だけ `apt-get update` を実行
+  （`_APT_UPDATED` フラグ管理）。`DEBIAN_FRONTEND=noninteractive` を付与
+- dnf: `--allowerasing` を追加（RHEL9 の curl-minimal 競合を解消）
+
+### curl|sh インストーラの信頼性
+- `fetch_and_run_installer`（common.sh）を新設: 一時ファイルにダウンロード→`sh` 実行。
+  ダウンロード失敗を確実に検知（従来の `curl | sh` はパイプの失敗を隠蔽していた）
+- starship / zoxide（cli-tools.sh）、rustup（rust.sh）、uv（uv.sh）の4箇所を置き換え、
+  各インストール後にバイナリ存在チェックで warn する後検証を追加
+
+### cli-tools の部分失敗許容
+- eza/fzf/direnv の `pkg_install` 失敗を `warn` して継続する形に変更
+  （base.sh は従来通り厳格に abort のまま）
+
+### プロンプトの TTY 必須化
+- `_require_tty`（prompt.sh）を新設。YES モード以外で `/dev/tty` が使えない場合は
+  die して非対話実行時の素通りを防止。`ask` / `ask_input` / `select_profile` に適用
+
+### chsh 非致命化
+- install.sh の chsh 失敗を `warn` に変更し、手動変更手順を案内（インストーラ全体は継続）
+
+### VS Code settings.json の配置
+- install.sh の config デプロイループで `vscode/*` をスキップ
+- vscode.sh に `_vscode_deploy_settings` を追加し、拡張機能導入後に
+  `deploy_file` で OS別パス（macOS: `~/Library/Application Support/Code/User/`、
+  Linux: `~/.config/Code/User/`）に配置。README にも配置先を追記
+- `_vscode_command` に `/snap/bin/code` フォールバックを追加（snap の bin が
+  インストール実行シェルの PATH に無いケースに対応）
+
+### doctor.sh の修正
+- repair 成功後に check を再実行し、実際に解消した場合のみ FIXED 表示
+  （解消しなければ「repair did not resolve」で fail 扱い）
+- `repair_dotfiles_zdotdir` の `cp -rn .../zsh/` を `cp -Rn .../zsh/.` に変更
+  （GNU cp でのネスト事故 `.config/zsh/zsh` とドットファイル取りこぼしを解消）
+- `check_shell_zsh` の `$USER` 未設定対応（`${USER:-$(id -un)}` をローカル変数化）
+
+### zsh 設定の修正
+- 50-aliases.zsh: eza 不在時の ls フォールバックをソース時の一度きりの機能検出に変更
+  （`ls --color=auto` 対応可否を probe してからエイリアス定義。従来の
+  `||` 実行時フォールバックは per-invocation の挙動不整合があった）
+- 10-completion.zsh: kill 補完の `ps` オプションを macOS（BSD ps）/Linux（GNU ps）で分岐
+  （`cmd` は GNU 限定、BSD には無い）
+- 01-path.zsh / 10-node.zsh: `~/.local/bin` の PATH 追加からディレクトリ存在ガードを撤廃し
+  常時追加に変更（`~/bin` のガードは維持）。後からインストールされるツール
+  （uv/npm 等）のバイナリを既存シェルでも解決できるように
+
+### git 署名テンプレートの修正（最優先）
+- config.template の 1Password セクションに `user.signingkey = __GIT_SIGNING_KEY__` を追加
+  （従来 `gpg.format=ssh` + `commit.gpgsign=true` のみで signingkey 未設定のため
+  全コミットが失敗していた）
+- install.sh: 1Password SSH agent のソケット（`~/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock`）
+  から `ssh-add -L` で鍵を取得できた場合のみ 1Password セクションを保持し
+  `key::<公開鍵>` を signingkey に埋め込む。鍵が取得できない場合は
+  1Password 導入済みでもセクションを削除し `warn` で通知（署名なしの通常コミットは可能）
+- 既存ユーザーの実 `~/.config/git/config` の修復は本ラウンドのスコープ外
+  （テンプレートと生成ロジックの修正のみ。別プロセスで対応予定）

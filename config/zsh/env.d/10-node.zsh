@@ -8,7 +8,8 @@ export NPM_CONFIG_CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/npm"
 
 # Keep ~/.local/bin on PATH for non-nvm npm globals and local tools.
 # When nvm is present, its default bin is prepended later so it stays first.
-[[ -d "${HOME}/.local/bin" ]] && path=("${HOME}/.local/bin" $path)
+# Always prepend, even if it does not exist yet (see 01-path.zsh).
+path=("${HOME}/.local/bin" $path)
 
 _dotfiles_nvm_dir="${NVM_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/nvm}"
 if [[ ! -s "${_dotfiles_nvm_dir}/nvm.sh" ]]; then

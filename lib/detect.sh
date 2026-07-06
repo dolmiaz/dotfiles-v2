@@ -94,6 +94,24 @@ detect_pkg_manager() {
     log "Package manager: ${PKG_MANAGER:-none}"
 }
 
+# ---------- privilege escalation helper ----------------------------------------
+
+# Tracks whether `apt-get update` has already run once this process.
+_APT_UPDATED=0
+
+# pkg_run_priv COMMAND [ARGS...]
+#   Run COMMAND with root privileges: directly if already root, via sudo
+#   otherwise.  Dies if sudo is required but not available.
+pkg_run_priv() {
+    if [[ ${EUID:-$(id -u)} -eq 0 ]]; then
+        run "$@"
+    elif have sudo; then
+        run sudo "$@"
+    else
+        die "sudo is required to install packages but was not found (run as root or install sudo)"
+    fi
+}
+
 # ---------- package install wrapper -------------------------------------------
 
 # pkg_install PACKAGE...
@@ -114,13 +132,17 @@ pkg_install() {
             run brew install "$@"
             ;;
         apt)
-            run sudo apt install -y "$@"
+            if [[ "$_APT_UPDATED" -eq 0 ]]; then
+                pkg_run_priv env DEBIAN_FRONTEND=noninteractive apt-get update
+                _APT_UPDATED=1
+            fi
+            pkg_run_priv env DEBIAN_FRONTEND=noninteractive apt-get install -y "$@"
             ;;
         dnf)
-            run sudo dnf install -y "$@"
+            pkg_run_priv dnf install -y --allowerasing "$@"
             ;;
         yum)
-            run sudo yum install -y "$@"
+            pkg_run_priv yum install -y "$@"
             ;;
         *)
             die "Unsupported package manager: $PKG_MANAGER"

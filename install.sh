@@ -336,11 +336,28 @@ if [[ "$GIT_CONFIG" != "SKIP" ]]; then
             git_config_content="$(printf '%s' "$git_config_content" | sed -e '/^# __BEGIN_LFS__$/d' -e '/^# __END_LFS__$/d')"
         fi
 
-        # Remove 1Password section if the app is not installed.
+        # Remove 1Password section if the app is not installed, or if it is
+        # installed but the SSH agent has no signing key available (commit
+        # signing would otherwise fail with "user.signingkey ... needs to be
+        # configured").
         if [[ ! -d "/Applications/1Password.app" ]] && ! have op; then
             git_config_content="$(printf '%s' "$git_config_content" | sed '/^# __BEGIN_1PASSWORD__$/,/^# __END_1PASSWORD__$/d')"
         else
-            git_config_content="$(printf '%s' "$git_config_content" | sed -e '/^# __BEGIN_1PASSWORD__$/d' -e '/^# __END_1PASSWORD__$/d')"
+            _op_sock="$HOME/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"
+            git_signing_key=""
+            if [[ -S "$_op_sock" ]]; then
+                git_signing_key="$(SSH_AUTH_SOCK="$_op_sock" ssh-add -L 2>/dev/null | head -n 1 || true)"
+            fi
+
+            if [[ -n "$git_signing_key" ]]; then
+                local_signing_key="$(escape_sed "key::$git_signing_key")"
+                git_config_content="$(printf '%s' "$git_config_content" | sed -e '/^# __BEGIN_1PASSWORD__$/d' -e '/^# __END_1PASSWORD__$/d')"
+                git_config_content="$(printf '%s' "$git_config_content" | sed \
+                    -e "s/__GIT_SIGNING_KEY__/$local_signing_key/g")"
+            else
+                warn "1Password SSH agent has no keys -- commit signing disabled in generated git config"
+                git_config_content="$(printf '%s' "$git_config_content" | sed '/^# __BEGIN_1PASSWORD__$/,/^# __END_1PASSWORD__$/d')"
+            fi
         fi
 
         printf '%s\n' "$git_config_content" > "$git_config_dest"
@@ -371,6 +388,9 @@ while IFS= read -r -d '' file; do
     [[ "$rel" == "git/config" ]] && continue
     # Skip git/ignore if we already deployed it above.
     [[ "$rel" == "git/ignore" ]] && [[ "$GIT_CONFIG" != "SKIP" ]] && continue
+    # Skip vscode/ -- deployed to the OS-specific VS Code settings path by
+    # install_vscode() in lib/modules/vscode.sh, not ~/.config/vscode/.
+    [[ "$rel" == vscode/* ]] && continue
     deploy_file "$file" "$HOME/.config/$rel"
 done < <(find "$DOTFILES_DIR/config" -type f -print0)
 
@@ -399,7 +419,10 @@ done
 if [[ "$DO_CHSH" == "1" ]]; then
     zsh_path="$(command -v zsh 2>/dev/null || true)"
     if [[ -n "$zsh_path" ]]; then
-        run chsh -s "$zsh_path"
+        if ! run chsh -s "$zsh_path"; then
+            warn "chsh failed -- change your default shell manually: chsh -s $zsh_path"
+            warn "(on Linux this may require your login password; on macOS ensure $zsh_path is in /etc/shells)"
+        fi
     else
         warn "zsh not found -- cannot change shell"
     fi

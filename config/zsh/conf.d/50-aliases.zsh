@@ -7,7 +7,11 @@ if (( $+commands[eza] )); then
   alias la='eza -la --group-directories-first --git'
   alias lt='eza --tree --level=2'
 else
-  alias ls='ls --color=auto 2>/dev/null || ls -G'
+  if command ls --color=auto -d . >/dev/null 2>&1; then
+    alias ls='ls --color=auto'
+  else
+    alias ls='ls -G'
+  fi
   alias ll='ls -lh'
   alias la='ls -lAh'
 fi

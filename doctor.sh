@@ -189,7 +189,7 @@ check_dotfiles_zdotdir() {
 repair_dotfiles_zdotdir() {
     mkdir -p "$HOME/.config/zsh"
     if [[ -d "$DOTFILES_DIR/config/zsh" ]]; then
-        cp -rn "$DOTFILES_DIR/config/zsh/" "$HOME/.config/zsh/" 2>/dev/null || true
+        cp -Rn "$DOTFILES_DIR/config/zsh/." "$HOME/.config/zsh/" 2>/dev/null || true
         log "Created ~/.config/zsh and copied config files"
     else
         log "Created ~/.config/zsh (no config/zsh source found to copy)"
@@ -245,9 +245,10 @@ check_git_user() {
 
 # 8. default shell is zsh
 check_shell_zsh() {
+    local user; user="${USER:-$(id -un)}"
     local current_shell
-    current_shell="$(getent passwd "$USER" 2>/dev/null | cut -d: -f7)" || \
-    current_shell="$(dscl . -read /Users/"$USER" UserShell 2>/dev/null | awk '{print $2}')" || \
+    current_shell="$(getent passwd "$user" 2>/dev/null | cut -d: -f7)" || \
+    current_shell="$(dscl . -read /Users/"$user" UserShell 2>/dev/null | awk '{print $2}')" || \
     current_shell="$SHELL"
     [[ "$current_shell" == */zsh ]]
 }
@@ -394,8 +395,17 @@ for entry in "${CHECKS[@]}"; do
         # Check failed -- attempt repair if requested.
         if (( FIX )) && [[ -n "$repair_fn" ]] && declare -f "$repair_fn" &>/dev/null; then
             if $repair_fn 2>/dev/null; then
-                print_result "$label" "fixed"
-                fixed=$((fixed + 1))
+                # Re-verify: a repair that "succeeds" but doesn't actually
+                # fix the underlying check should not be reported as FIXED.
+                recheck_rc=0
+                "$check_fn" 2>/dev/null || recheck_rc=$?
+                if (( recheck_rc == 0 )); then
+                    print_result "$label" "fixed"
+                    fixed=$((fixed + 1))
+                else
+                    print_result "$label" "fail" "repair did not resolve"
+                    failed=$((failed + 1))
+                fi
             else
                 print_result "$label" "fail" "repair failed"
                 failed=$((failed + 1))

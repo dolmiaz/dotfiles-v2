@@ -85,3 +85,26 @@ run() {
     fi
     "$@"
 }
+
+# fetch_and_run_installer URL [ARGS...]
+#   Download an installer script to a temp file, then execute it with sh.
+#   Fails loudly if the download fails (unlike `curl | sh`, which silently
+#   "succeeds" with an empty pipeline if the download fails).
+fetch_and_run_installer() {
+    local url="$1"; shift
+    if [[ "$DRY_RUN" == "1" ]]; then
+        printf '%s[DRY-RUN]%s curl -fsSL %s | sh -s -- %s\n' "$_CYAN" "$_RESET" "$url" "$*"
+        return 0
+    fi
+    local tmp
+    tmp="$(mktemp "${TMPDIR:-/tmp}/dotfiles-installer.XXXXXX")"
+    if ! curl --proto '=https' --tlsv1.2 -fsSL "$url" -o "$tmp"; then
+        rm -f "$tmp"
+        warn "Failed to download installer: $url"
+        return 1
+    fi
+    local rc=0
+    sh "$tmp" "$@" || rc=$?
+    rm -f "$tmp"
+    return $rc
+}

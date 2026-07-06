@@ -11,7 +11,10 @@ install_uv() {
   fi
 
   log "Installing uv via official installer"
-  run sh -c 'curl -LsSf https://astral.sh/uv/install.sh | sh'
+  fetch_and_run_installer https://astral.sh/uv/install.sh
+  if ! have uv && [[ ! -x /usr/local/bin/uv ]] && [[ ! -x "$HOME/.local/bin/uv" ]]; then
+    warn "uv installation appears to have failed"
+  fi
 }
 
 # Return: 0 = OK, 2 = SKIP (not installed)

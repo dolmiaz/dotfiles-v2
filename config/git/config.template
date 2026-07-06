@@ -66,6 +66,9 @@
 
 [commit]
 	gpgsign = true
+
+[user]
+	signingkey = __GIT_SIGNING_KEY__
 # __END_1PASSWORD__
 # __END_MACOS__
 

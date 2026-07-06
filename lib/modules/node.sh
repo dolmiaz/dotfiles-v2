@@ -129,7 +129,7 @@ install_node() {
       ;;
     redhat)
       if have dnf; then
-        run sudo dnf module install -y nodejs
+        pkg_run_priv dnf module install -y nodejs
       else
         pkg_install nodejs
       fi

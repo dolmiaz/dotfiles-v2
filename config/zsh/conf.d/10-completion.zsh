@@ -38,7 +38,11 @@ zstyle ':completion:*' special-dirs true
 
 # Process completion
 zstyle ':completion:*:*:kill:*:processes' list-colors '=(#b) #([0-9]#)*=0=01;31'
-zstyle ':completion:*:kill:*' command 'ps -u $USER -o pid,%cpu,tty,cputime,cmd'
+if [[ "${OSTYPE}" == darwin* ]]; then
+  zstyle ':completion:*:kill:*' command 'ps -u $USER -o pid,%cpu,tty,time,command'
+else
+  zstyle ':completion:*:kill:*' command 'ps -u $USER -o pid,%cpu,tty,cputime,cmd'
+fi
 
 # Directories first
 zstyle ':completion:*' list-dirs-first true

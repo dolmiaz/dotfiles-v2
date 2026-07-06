@@ -15,6 +15,18 @@ fi
 YES="${YES:-0}"
 export YES
 
+# ---------- TTY guard -----------------------------------------------------------
+
+# _require_tty
+#   Die with a clear message if interactive input is required (YES mode is
+#   off) but no controlling TTY is available for the /dev/tty reads below.
+_require_tty() {
+    [[ "$YES" == "1" ]] && return 0
+    if ! (exec </dev/tty) 2>/dev/null; then
+        die "No TTY available for interactive prompts. Re-run with --yes for non-interactive use."
+    fi
+}
+
 # ---------- yes/no prompt -----------------------------------------------------
 
 # ask QUESTION [DEFAULT]
@@ -41,6 +53,7 @@ ask() {
         return
     fi
 
+    _require_tty
     local answer
     printf '%s %s ' "$question" "$prompt" >&2
     read -r answer </dev/tty || answer=""
@@ -68,6 +81,7 @@ ask_input() {
         return 0
     fi
 
+    _require_tty
     local answer
     if [[ -n "$default" ]]; then
         printf '%s [%s]: ' "$question" "$default" >&2
@@ -95,6 +109,7 @@ select_profile() {
         return 0
     fi
 
+    _require_tty
     printf '\nSelect a profile:\n' >&2
     local i
     for i in "${!profiles[@]}"; do

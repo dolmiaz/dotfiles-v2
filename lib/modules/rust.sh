@@ -70,7 +70,10 @@ install_rust() {
   fi
 
   log "Installing Rust via rustup (--no-modify-path)"
-  run sh -c 'curl --proto "=https" --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --no-modify-path'
+  fetch_and_run_installer https://sh.rustup.rs -y --no-modify-path
+  if ! have rustup && [[ ! -x "${CARGO_HOME:-$HOME/.cargo}/bin/rustup" ]]; then
+    warn "rustup installation appears to have failed"
+  fi
 }
 
 # Return: 0 = OK, 1 = FAIL (wrong Rust path/config), 2 = SKIP (not installed)

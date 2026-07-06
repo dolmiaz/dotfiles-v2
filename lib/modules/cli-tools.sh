@@ -12,27 +12,37 @@ install_cli_tools() {
 
   # ---- eza ----
   case "$OS" in
-    macos)  pkg_install eza ;;
-    debian) pkg_install eza ;;       # eza is in recent Ubuntu/Debian repos
-    redhat) pkg_install eza ;;
+    macos)  if ! pkg_install eza; then warn "eza is not available from $PKG_MANAGER; install it manually (https://eza.rocks)"; fi ;;
+    debian) if ! pkg_install eza; then warn "eza is not available from $PKG_MANAGER; install it manually (https://eza.rocks)"; fi ;;       # eza is in recent Ubuntu/Debian repos
+    redhat) if ! pkg_install eza; then warn "eza is not available from $PKG_MANAGER; install it manually (https://eza.rocks)"; fi ;;
   esac
 
   # ---- fzf ----
-  pkg_install fzf
+  if ! pkg_install fzf; then
+    warn "fzf is not available from $PKG_MANAGER; install it manually (https://github.com/junegunn/fzf)"
+  fi
 
   # ---- direnv ----
-  pkg_install direnv
+  if ! pkg_install direnv; then
+    warn "direnv is not available from $PKG_MANAGER; install it manually (https://direnv.net)"
+  fi
 
   # ---- starship (official installer, all platforms) ----
   if ! have starship; then
     log "Installing starship via official installer"
-    run sh -c 'curl -sS https://starship.rs/install.sh | sh -s -- -y'
+    fetch_and_run_installer https://starship.rs/install.sh -y
+    if ! have starship && [[ ! -x /usr/local/bin/starship ]] && [[ ! -x "$HOME/.local/bin/starship" ]]; then
+      warn "starship installation appears to have failed"
+    fi
   fi
 
   # ---- zoxide (official installer, all platforms) ----
   if ! have zoxide; then
     log "Installing zoxide via official installer"
-    run sh -c 'curl -sSfL https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | sh'
+    fetch_and_run_installer https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh
+    if ! have zoxide && [[ ! -x /usr/local/bin/zoxide ]] && [[ ! -x "$HOME/.local/bin/zoxide" ]]; then
+      warn "zoxide installation appears to have failed"
+    fi
   fi
 }
 

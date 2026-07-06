@@ -31,6 +31,12 @@ _vscode_command() {
       printf '%s\n' "$app_code"
       return 0
     fi
+  else
+    # snap's bin dir may not be on PATH in the installing shell.
+    if [[ -x /snap/bin/code ]]; then
+      printf '%s\n' "/snap/bin/code"
+      return 0
+    fi
   fi
 
   return 1
@@ -66,7 +72,7 @@ install_vscode() {
         ;;
       debian)
         if have snap; then
-          run sudo snap install code --classic
+          pkg_run_priv snap install code --classic
         else
           warn "snap not found; skipping VS Code installation"
           return
@@ -74,7 +80,7 @@ install_vscode() {
         ;;
       redhat)
         if have snap; then
-          run sudo snap install code --classic
+          pkg_run_priv snap install code --classic
         else
           warn "snap not found; skipping VS Code installation"
           return
@@ -109,6 +115,38 @@ install_vscode() {
   if have npm; then
     _vscode_install_extensions "${VSCODE_EXTENSIONS_NODE[@]}"
   fi
+
+  # ---- Settings ----
+  _vscode_deploy_settings
+}
+
+# _vscode_deploy_settings
+#   Deploy config/vscode/settings.json to the OS-correct VS Code settings
+#   path.  Guarded on deploy_file since doctor.sh may source this module
+#   standalone without lib/deploy.sh loaded.
+_vscode_deploy_settings() {
+  if ! declare -f deploy_file >/dev/null; then
+    return 0
+  fi
+
+  local src="$DOTFILES_DIR/config/vscode/settings.json"
+  [[ -r "$src" ]] || return 0
+
+  local dest
+  case "${OS:-}" in
+    macos)
+      dest="$HOME/Library/Application Support/Code/User/settings.json"
+      ;;
+    debian|redhat)
+      dest="$HOME/.config/Code/User/settings.json"
+      ;;
+    *)
+      warn "Unknown OS -- skipping VS Code settings.json deployment"
+      return 0
+      ;;
+  esac
+
+  deploy_file "$src" "$dest"
 }
 
 # Return: 0 = OK, 2 = SKIP (not installed)
