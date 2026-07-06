@@ -25,10 +25,11 @@ install_c_cpp() {
   esac
 }
 
+# Return: 0 = OK, 1 = FAIL (cmake present but no compiler), 2 = SKIP (not installed)
 check_c_cpp() {
   # cmake is the primary indicator that C/C++ was installed via our setup.
   # System compilers (e.g. macOS /usr/bin/cc) don't count as "our" install.
-  have cmake || return 0
+  have cmake || return 2
   { have gcc || have cc; } || return 1
   return 0
 }

@@ -19,8 +19,9 @@ install_rust() {
   run sh -c 'curl --proto "=https" --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --no-modify-path'
 }
 
+# Return: 0 = OK, 1 = FAIL (rustup present but cargo missing), 2 = SKIP (not installed)
 check_rust() {
-  have rustup || return 0
+  have rustup || return 2
   have cargo || return 1
   return 0
 }

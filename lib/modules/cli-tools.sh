@@ -36,6 +36,7 @@ install_cli_tools() {
   fi
 }
 
+# Return: 0 = OK, 1 = FAIL (partially installed), 2 = SKIP (none installed)
 check_cli_tools() {
   local missing=()
   local found=0
@@ -47,9 +48,9 @@ check_cli_tools() {
     fi
   done
 
-  # If none are installed, treat as skipped (0)
+  # If none are installed, treat as skipped (2)
   if (( found == 0 )); then
-    return 0
+    return 2
   fi
 
   # If at least one is installed but others are missing, that is a failure

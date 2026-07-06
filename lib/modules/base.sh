@@ -12,6 +12,7 @@ install_base() {
   pkg_install "${BASE_PACKAGES[@]}"
 }
 
+# Return: 0 = OK, 1 = FAIL (base packages are always expected, so never SKIP)
 check_base() {
   local missing=()
   for cmd in "${BASE_PACKAGES[@]}"; do
