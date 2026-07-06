@@ -35,3 +35,34 @@
 ### README提案
 README.md の Status セクションに「initial setup phase」とあるが、実装は完了済み。
 README編集禁止のため、push前にユーザーに確認する。
+→ 2026-07-06: ユーザー指示により README 全面書き直し（日本語・外部向け）が決定。編集禁止は解除。
+
+## 2026-07-06: Round 1 設計レビュー（監督者 + Codex xhigh）
+
+「dotfiles の導入として適切な作りか」の観点でダブルレビューを実施。
+
+### 修正対象（HIGH）
+- **bash 3.2 互換性**: prompt.sh の `${var^^}` / `${answer^^}` は bash 4 構文。
+  macOS 標準 `/bin/bash`（3.2）で `bad substitution` になり install 不能（Codex が実証）。→ Agent A
+- **copy モードの冪等性欠如**: deploy_file が再実行のたびに同一内容でも
+  バックアップ→再コピーする。バックアップ増殖 + ~/.zshrc landing pad への
+  ユーザー追記を毎回退避・上書き。→ 内容一致（cmp -s）ならスキップに変更。→ Agent A
+- **doctor.sh の診断モデル**: 未インストール＝OK 表示で healthy と区別できない。
+  sudoers.d チェックは installer が作成しないファイルを常に FAIL 判定し exit 1。
+  → check_* を3状態（0=OK / 1=FAIL / 2=SKIP）化、doctor.sh で SKIP 表示。→ Agent C
+
+### 修正対象（MEDIUM/LOW）
+- Homebrew 不在の macOS で警告のみ出して途中で死ぬ → install.sh 冒頭で早期 die + 導入手順表示。→ Agent A
+- env.d/00-xdg.zsh が既存の XDG_* を強制上書き → `${XDG_CONFIG_HOME:-...}` で尊重。→ Agent C
+- node.sh の `mkdir -p` が run() を経由せず dry-run 契約違反。→ Agent C
+
+### 記録のみ（今回スコープ外・将来課題）
+- アンインストール/ロールバック: マニフェスト方式（デプロイ先の記録）+ uninstall.sh の設計が必要
+- install.sh と doctor.sh でコンポーネントレジストリが二重管理（ドリフトの温床）
+- パッケージ移植性: Debian の eza 収録有無、VS Code の snap 前提、dnf module のストリーム未指定
+  → README に「環境により手動インストールが必要」と明記して緩和
+- deploy_file が既存 symlink（別ターゲット）をバックアップなしで削除する
+
+### 総評（Codex）
+アーキテクチャの骨格（XDG、ZDOTDIR landing pad、モジュラー zsh、install_/check_/repair_ 三点セット）は
+適切。bash 3.2 問題と状態管理（冪等 copy、doctor 整合、ロールバック）を解消すれば堅実なインストーラになる。
