@@ -30,6 +30,9 @@ check_c_cpp() {
   # cmake is the primary indicator that C/C++ was installed via our setup.
   # System compilers (e.g. macOS /usr/bin/cc) don't count as "our" install.
   have cmake || return 2
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    xcode-select -p &>/dev/null || return 1
+  fi
   { have gcc || have cc; } || return 1
   return 0
 }

@@ -12,8 +12,6 @@
 [core]
 	autocrlf = input
 	editor = __GIT_EDITOR__
-	fsmonitor = true
-	untrackedcache = true
 	excludesFile = ~/.config/git/ignore
 
 [color]
@@ -54,6 +52,10 @@
 
 # ── OS-specific: macOS ───────────────────────────────────────
 # __BEGIN_MACOS__
+[core]
+	fsmonitor = true
+	untrackedcache = true
+
 [credential]
 	helper = __GIT_CREDENTIAL_HELPER__
 

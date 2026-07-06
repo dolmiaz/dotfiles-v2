@@ -286,3 +286,15 @@ Round 3 の「教訓・残課題」に挙げた項目一式を解消。
   (`zsh-autosuggestions.zsh` / `zsh-syntax-highlighting.zsh`) の readable 判定に変更。
 - doctor の `~/.local/bin in PATH` は bash 実行時の PATH だけで誤判定せず、
   zsh が存在する場合は `zsh -lc` の PATH も確認するよう改善。
+
+## 2026-07-07: Round 8 最終レビュー対応
+
+- Git の `core.fsmonitor` / `core.untrackedcache` は Linux の Git で
+  `fsmonitor--daemon` 警告を出すため、global `[core]` から外し macOS セクション限定に変更。
+- doctor の zsh 検査を完全化。`~/.zshenv` は `~/.config/zsh` を指すこと、
+  `~/.zshrc` は landing pad マーカーを持つこと、`env.d` / `conf.d` は
+  リポジトリ側の `.zsh` ファイルがすべて配置済みであることを確認するよう変更。
+- doctor の `default shell = zsh` に `--fix-sudo` 修復を実装し、
+  `sudo chsh -s "$(command -v zsh)" "$USER"` を実行できるようにした。
+- macOS の C/C++ doctor チェックで `cmake` だけでなく Xcode Command Line Tools
+  (`xcode-select -p`) の存在も確認するよう変更。

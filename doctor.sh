@@ -147,6 +147,7 @@ done
 check_dotfiles_zshenv() {
     [[ -r "$HOME/.zshenv" ]] || return 1
     grep -q 'ZDOTDIR' "$HOME/.zshenv" || return 1
+    grep -q '\.config/zsh' "$HOME/.zshenv" || return 1
 }
 repair_dotfiles_zshenv() {
     if [[ -r "$DOTFILES_DIR/home/.zshenv" ]]; then
@@ -166,6 +167,7 @@ repair_dotfiles_zshenv() {
 # 2. ~/.zshrc landing pad
 check_dotfiles_zshrc() {
     [[ -r "$HOME/.zshrc" ]] || return 1
+    grep -qF -- '~/.zshrc — Landing Pad' "$HOME/.zshrc" || return 1
 }
 repair_dotfiles_zshrc() {
     if [[ -r "$DOTFILES_DIR/home/.zshrc" ]]; then
@@ -201,6 +203,15 @@ repair_dotfiles_zdotdir() {
 # 4. env.d/ has .zsh files
 check_dotfiles_envd() {
     [[ -d "$HOME/.config/zsh/env.d" ]] || return 1
+    if [[ -d "$DOTFILES_DIR/config/zsh/env.d" ]]; then
+        local src dest
+        for src in "$DOTFILES_DIR"/config/zsh/env.d/*.zsh; do
+            [[ -e "$src" ]] || continue
+            dest="$HOME/.config/zsh/env.d/$(basename "$src")"
+            [[ -r "$dest" ]] || return 1
+        done
+        return 0
+    fi
     local count
     count=$(find "$HOME/.config/zsh/env.d" -name "*.zsh" 2>/dev/null | wc -l)
     (( count > 0 ))
@@ -219,6 +230,15 @@ repair_dotfiles_envd() {
 # 5. conf.d/ has .zsh files
 check_dotfiles_confd() {
     [[ -d "$HOME/.config/zsh/conf.d" ]] || return 1
+    if [[ -d "$DOTFILES_DIR/config/zsh/conf.d" ]]; then
+        local src dest
+        for src in "$DOTFILES_DIR"/config/zsh/conf.d/*.zsh; do
+            [[ -e "$src" ]] || continue
+            dest="$HOME/.config/zsh/conf.d/$(basename "$src")"
+            [[ -r "$dest" ]] || return 1
+        done
+        return 0
+    fi
     local count
     count=$(find "$HOME/.config/zsh/conf.d" -name "*.zsh" 2>/dev/null | wc -l)
     (( count > 0 ))
@@ -260,6 +280,20 @@ check_shell_zsh() {
     current_shell="$SHELL"
     [[ "$current_shell" == */zsh ]]
 }
+repair_shell_zsh() {
+    local zsh_path user
+    zsh_path="$(command -v zsh 2>/dev/null || true)"
+    [[ -n "$zsh_path" ]] || {
+        warn "zsh not found on PATH"
+        return 1
+    }
+    user="${USER:-$(id -un)}"
+    if declare -f run &>/dev/null; then
+        run sudo chsh -s "$zsh_path" "$user"
+    else
+        sudo chsh -s "$zsh_path" "$user"
+    fi
+}
 
 # 9. /etc/sudoers.d/dotfiles-path exists (optional -- the installer does not
 #    deploy this file, so its absence is SKIP rather than FAIL)
@@ -298,7 +332,7 @@ CHECKS=(
     "VS Code|check_vscode|repair_vscode|no"
     "zsh plugins|check_zsh_plugins|repair_zsh_plugins|no"
     "git user config|check_git_user||no"
-    "default shell = zsh|check_shell_zsh||sudo"
+    "default shell = zsh|check_shell_zsh|repair_shell_zsh|sudo"
     "sudoers.d PATH|check_sudoers_path||sudo"
 )
 
