@@ -14,11 +14,26 @@ _npm_cache_dir() {
 }
 
 _nvm_dir() {
-  printf '%s\n' "${NVM_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/nvm}"
+  local dir
+  if [[ -n "${NVM_DIR:-}" ]] && [[ -r "$NVM_DIR/nvm.sh" ]]; then
+    printf '%s\n' "$NVM_DIR"
+    return 0
+  fi
+
+  dir="${XDG_DATA_HOME:-$HOME/.local/share}/nvm"
+  if [[ -r "$dir/nvm.sh" ]]; then
+    printf '%s\n' "$dir"
+    return 0
+  fi
+
+  dir="$HOME/.nvm"
+  if [[ -r "$dir/nvm.sh" ]]; then
+    printf '%s\n' "$dir"
+  fi
 }
 
 _node_has_nvm() {
-  [[ -s "$(_nvm_dir)/nvm.sh" ]]
+  [[ -n "$(_nvm_dir)" ]]
 }
 
 _ensure_npm_prefix_config() {

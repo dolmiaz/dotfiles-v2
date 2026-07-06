@@ -133,8 +133,11 @@ pkg_install() {
             ;;
         apt)
             if [[ "$_APT_UPDATED" -eq 0 ]]; then
-                pkg_run_priv env DEBIAN_FRONTEND=noninteractive apt-get update
-                _APT_UPDATED=1
+                if pkg_run_priv env DEBIAN_FRONTEND=noninteractive apt-get update; then
+                    _APT_UPDATED=1
+                else
+                    warn "apt-get update failed -- attempting install with existing package lists"
+                fi
             fi
             pkg_run_priv env DEBIAN_FRONTEND=noninteractive apt-get install -y "$@"
             ;;

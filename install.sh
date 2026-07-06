@@ -267,6 +267,11 @@ if [[ "$GIT_CONFIG" != "SKIP" ]]; then
     log "Configuring git..."
 
     git_editor="${VISUAL:-${EDITOR:-vim}}"
+    if git --version 2>/dev/null | awk '{ split($3, v, "."); exit ! (v[1] > 2 || (v[1] == 2 && v[2] >= 35)) }'; then
+        git_conflict_style="zdiff3"
+    else
+        git_conflict_style="diff3"
+    fi
 
     if [[ -z "$git_name" ]] || [[ -z "$git_email" ]]; then
         warn "git user.name or user.email is empty — skipping git config generation"
@@ -276,9 +281,14 @@ if [[ "$GIT_CONFIG" != "SKIP" ]]; then
     # Determine credential helper based on OS.
     case "$OS" in
         macos)  git_credential_helper="osxkeychain" ;;
-        debian) git_credential_helper="store" ;;
-        redhat) git_credential_helper="store" ;;
-        *)      git_credential_helper="store" ;;
+        debian|redhat)
+            if have git-credential-libsecret; then
+                git_credential_helper="libsecret"
+            else
+                git_credential_helper="cache --timeout=86400"
+            fi
+            ;;
+        *)      git_credential_helper="cache --timeout=86400" ;;
     esac
 
     template="$DOTFILES_DIR/config/git/config.template"
@@ -292,6 +302,7 @@ if [[ "$GIT_CONFIG" != "SKIP" ]]; then
         log "[DRY-RUN]   user.email = $git_email"
         log "[DRY-RUN]   editor     = $git_editor"
         log "[DRY-RUN]   credential = $git_credential_helper"
+        log "[DRY-RUN]   conflictstyle = $git_conflict_style"
     else
         mkdir -p "$(dirname "$git_config_dest")"
         # Backup existing git config before overwriting.
@@ -309,12 +320,14 @@ if [[ "$GIT_CONFIG" != "SKIP" ]]; then
         local_email="$(escape_sed "$git_email")"
         local_editor="$(escape_sed "$git_editor")"
         local_cred="$(escape_sed "$git_credential_helper")"
+        local_conflict_style="$(escape_sed "$git_conflict_style")"
 
         git_config_content="$(printf '%s' "$git_config_content" | sed \
             -e "s/__GIT_USER_NAME__/$local_name/g" \
             -e "s/__GIT_USER_EMAIL__/$local_email/g" \
             -e "s/__GIT_EDITOR__/$local_editor/g" \
-            -e "s/__GIT_CREDENTIAL_HELPER__/$local_cred/g")"
+            -e "s/__GIT_CREDENTIAL_HELPER__/$local_cred/g" \
+            -e "s/__GIT_CONFLICT_STYLE__/$local_conflict_style/g")"
 
         # Remove OS-specific sections based on detected OS.
         if [[ "$OS" == "macos" ]]; then
@@ -377,9 +390,16 @@ for file in "$DOTFILES_DIR"/home/.*; do
     [[ -f "$file" ]] || continue
     name="$(basename "$file")"
     # ~/.zshrc is the landing pad: external tools may append to it, and
-    # ZDOTDIR/.zshrc sources it at the end. Deploy only on first install so
-    # reruns preserve appended user/tool config. Other home shims stay managed.
-    [[ "$name" == ".zshrc" ]] && [[ -f "$HOME/.zshrc" ]] && continue
+    # ZDOTDIR/.zshrc sources it at the end. Skip only our marked landing
+    # pad so reruns preserve appended user/tool config. Foreign ~/.zshrc
+    # files are backed up and replaced, matching the ZDOTDIR design.
+    if [[ "$name" == ".zshrc" ]] && [[ -f "$HOME/.zshrc" ]]; then
+        if grep -qF '~/.zshrc — Landing Pad' "$HOME/.zshrc"; then
+            continue
+        fi
+        log "Replacing existing ~/.zshrc with landing pad; previous file will be backed up"
+        log "Re-add customizations under ~/.config/zsh/conf.d/ after installation"
+    fi
     deploy_file "$file" "$HOME/$name"
 done
 

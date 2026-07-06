@@ -11,8 +11,17 @@ export NPM_CONFIG_CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/npm"
 # Always prepend, even if it does not exist yet (see 01-path.zsh).
 path=("${HOME}/.local/bin" $path)
 
-_dotfiles_nvm_dir="${NVM_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/nvm}"
-if [[ ! -s "${_dotfiles_nvm_dir}/nvm.sh" ]]; then
+_dotfiles_nvm_dir=""
+_dotfiles_nvm_xdg_dir="${XDG_DATA_HOME:-$HOME/.local/share}/nvm"
+if [[ -n "${NVM_DIR:-}" && -r "${NVM_DIR}/nvm.sh" ]]; then
+  _dotfiles_nvm_dir="${NVM_DIR}"
+elif [[ -r "${_dotfiles_nvm_xdg_dir}/nvm.sh" ]]; then
+  _dotfiles_nvm_dir="${_dotfiles_nvm_xdg_dir}"
+elif [[ -r "${HOME}/.nvm/nvm.sh" ]]; then
+  _dotfiles_nvm_dir="${HOME}/.nvm"
+fi
+
+if [[ -z "${_dotfiles_nvm_dir}" ]]; then
   export NPM_CONFIG_PREFIX="${HOME}/.local"
 else
   unset NPM_CONFIG_PREFIX
@@ -45,5 +54,5 @@ else
   fi
   [[ -n "${_dotfiles_nvm_bin}" ]] && path=("${_dotfiles_nvm_bin}" $path)
 fi
-unset _dotfiles_nvm_dir _dotfiles_nvm_bin _dotfiles_nvm_default_file _dotfiles_nvm_default
+unset _dotfiles_nvm_dir _dotfiles_nvm_xdg_dir _dotfiles_nvm_bin _dotfiles_nvm_default_file _dotfiles_nvm_default
 unset _dotfiles_nvm_hops _dotfiles_nvm_alias _vers

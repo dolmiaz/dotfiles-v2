@@ -47,8 +47,8 @@ check_zsh_plugins() {
   # Plugin directory does not exist -- not installed, skip.
   [[ -d "$plugin_dir" ]] || return 2
   # Directory exists but plugins are missing -- incomplete.
-  [[ -d "$plugin_dir/zsh-autosuggestions" ]]      || return 1
-  [[ -d "$plugin_dir/zsh-syntax-highlighting" ]]  || return 1
+  [[ -r "$plugin_dir/zsh-autosuggestions/zsh-autosuggestions.zsh" ]] || return 1
+  [[ -r "$plugin_dir/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh" ]] || return 1
   return 0
 }
 

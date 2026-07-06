@@ -265,3 +265,24 @@ Round 3 の「教訓・残課題」に挙げた項目一式を解消。
   config デプロイループで `npm/npmrc` は初回デプロイ後（`~/.config/npm/npmrc`
   が既に存在する場合）はスキップするよう修正。以降は node.sh が管理する
 - landing pad `~/.zshrc` の再デプロイ上書き（追記消失）を初回のみデプロイに変更。
+
+## 2026-07-07: Round 7 独立レビュー対応
+
+- nvm 検出を XDG パスだけでなく公式デフォルトの `~/.nvm` にも対応。
+  `NVM_DIR` 指定、XDG、`~/.nvm` の順に `nvm.sh` が存在するディレクトリを採用し、
+  env.d / conf.d / node.sh の判定を揃えた。
+- landing pad `~/.zshrc` は単なる存在ではなく `Landing Pad` マーカーで判定。
+  既存の外部 `.zshrc` はバックアップして置き換え、既存 landing pad だけ再デプロイを
+  スキップする。さらに ZDOTDIR 側 `.zshrc` に再帰 source 防止ガードを追加。
+- apt の `_APT_UPDATED` フラグは `apt-get update` 成功時のみ立てるよう修正し、
+  失敗時は警告のうえ既存 package list で install を試す。
+- Git `merge.conflictstyle=zdiff3` は Git 2.35 未満で壊れるため、生成時に
+  バージョン判定して 2.35 以上は `zdiff3`、それ未満は `diff3` を埋め込むよう変更。
+- Linux の credential helper は平文 `store` をやめ、`git-credential-libsecret` が
+  あれば `libsecret`、なければ 24時間の `cache --timeout=86400` に変更。
+- doctor の zsh デプロイチェックを深掘りし、`~/.config/zsh` ディレクトリだけでなく
+  `.zshenv` / `.zshrc` の存在も確認するよう変更。
+- zsh plugins の doctor チェックをディレクトリ存在だけでなく実際の entry file
+  (`zsh-autosuggestions.zsh` / `zsh-syntax-highlighting.zsh`) の readable 判定に変更。
+- doctor の `~/.local/bin in PATH` は bash 実行時の PATH だけで誤判定せず、
+  zsh が存在する場合は `zsh -lc` の PATH も確認するよう改善。

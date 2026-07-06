@@ -1,10 +1,24 @@
 # nvm — Node Version Manager
 # https://github.com/nvm-sh/nvm
 
-export NVM_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/nvm"
+_dotfiles_nvm_dir=""
+_dotfiles_nvm_xdg_dir="${XDG_DATA_HOME:-$HOME/.local/share}/nvm"
+if [[ -n "${NVM_DIR:-}" && -r "${NVM_DIR}/nvm.sh" ]]; then
+  _dotfiles_nvm_dir="${NVM_DIR}"
+elif [[ -r "${_dotfiles_nvm_xdg_dir}/nvm.sh" ]]; then
+  _dotfiles_nvm_dir="${_dotfiles_nvm_xdg_dir}"
+elif [[ -r "${HOME}/.nvm/nvm.sh" ]]; then
+  _dotfiles_nvm_dir="${HOME}/.nvm"
+fi
 
 # Bail if nvm is not installed
-[[ -s "${NVM_DIR}/nvm.sh" ]] || return
+[[ -n "${_dotfiles_nvm_dir}" ]] || {
+  unset _dotfiles_nvm_dir _dotfiles_nvm_xdg_dir
+  return
+}
+
+export NVM_DIR="${_dotfiles_nvm_dir}"
+unset _dotfiles_nvm_dir _dotfiles_nvm_xdg_dir
 
 # Lazy-load nvm: define wrapper functions that replace themselves
 # on first invocation. This avoids ~200ms startup penalty.

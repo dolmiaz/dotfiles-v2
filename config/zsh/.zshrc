@@ -19,6 +19,7 @@ unset DOTFILES_CONF_DIR
 
 # ── Landing Pad ─────────────────────────────────────────────
 # LLM/ツール互換: ~/.zshrc に追記された設定を拾う
-if [[ "${ZDOTDIR:-$HOME}" != "$HOME" && -r "$HOME/.zshrc" ]]; then
+if [[ -z "${_dotfiles_zshrc_sourced:-}" && "${ZDOTDIR:-$HOME}" != "$HOME" && -r "$HOME/.zshrc" ]]; then
+  typeset -g _dotfiles_zshrc_sourced=1
   source "$HOME/.zshrc"
 fi

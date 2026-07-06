@@ -185,6 +185,8 @@ repair_dotfiles_zshrc() {
 # 3. ZDOTDIR directory exists
 check_dotfiles_zdotdir() {
     [[ -d "$HOME/.config/zsh" ]] || return 1
+    [[ -r "$HOME/.config/zsh/.zshenv" ]] || return 1
+    [[ -r "$HOME/.config/zsh/.zshrc" ]] || return 1
 }
 repair_dotfiles_zdotdir() {
     mkdir -p "$HOME/.config/zsh"
@@ -234,7 +236,13 @@ repair_dotfiles_confd() {
 
 # 6. ~/.local/bin is in PATH
 check_path_local_bin() {
-    [[ ":$PATH:" == *":$HOME/.local/bin:"* ]]
+    local zsh_path
+    [[ ":$PATH:" == *":$HOME/.local/bin:"* ]] && return 0
+    if have zsh; then
+        zsh_path="$(zsh -lc 'printf %s "$PATH"' 2>/dev/null || true)"
+        [[ ":$zsh_path:" == *":$HOME/.local/bin:"* ]] && return 0
+    fi
+    return 1
 }
 
 # 7. git user.name and user.email configured
