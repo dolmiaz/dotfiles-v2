@@ -1,0 +1,106 @@
+" Vim configuration — XDG-compliant paths
+"
+" This file is sourced from ~/.vimrc (the redirect shim) or
+" directly via: vim -u ~/.config/vim/vimrc
+
+" ── XDG directory setup ──────────────────────────────────────
+set runtimepath^=~/.config/vim
+set runtimepath+=~/.config/vim/after
+set packpath^=~/.config/vim
+
+" Use XDG paths for data and cache
+if !has('nvim')
+  set viminfofile=~/.local/state/vim/viminfo
+  set undodir=~/.local/state/vim/undo
+  set backupdir=~/.local/state/vim/backup
+  set directory=~/.local/state/vim/swap
+
+  " Ensure directories exist
+  for s:dir in [
+    \ expand('~/.local/state/vim'),
+    \ expand('~/.local/state/vim/undo'),
+    \ expand('~/.local/state/vim/backup'),
+    \ expand('~/.local/state/vim/swap')]
+    if !isdirectory(s:dir)
+      call mkdir(s:dir, 'p')
+    endif
+  endfor
+endif
+
+" ── General ──────────────────────────────────────────────────
+set nocompatible
+set encoding=utf-8
+set fileencoding=utf-8
+set fileformats=unix,dos,mac
+
+" ── UI ───────────────────────────────────────────────────────
+set number                    " Show line numbers
+set relativenumber            " Relative line numbers
+set cursorline                " Highlight current line
+set showcmd                   " Show partial commands
+set showmode                  " Show current mode
+set laststatus=2              " Always show status line
+set ruler                     " Show cursor position
+set wildmenu                  " Enhanced command completion
+set wildmode=longest:full,full
+set signcolumn=yes            " Always show sign column
+set scrolloff=8               " Keep 8 lines above/below cursor
+set sidescrolloff=8
+
+" ── Syntax and colors ────────────────────────────────────────
+if has('syntax')
+  syntax enable
+endif
+if has('termguicolors')
+  set termguicolors
+endif
+set background=dark
+
+" ── Search ───────────────────────────────────────────────────
+set incsearch                 " Incremental search
+set hlsearch                  " Highlight search results
+set ignorecase                " Case-insensitive search
+set smartcase                 " Case-sensitive if uppercase used
+
+" ── Indentation ──────────────────────────────────────────────
+set autoindent
+set smartindent
+set expandtab                 " Use spaces instead of tabs
+set tabstop=4                 " Tab width
+set shiftwidth=4              " Indent width
+set softtabstop=4
+set shiftround                " Round indent to multiple of shiftwidth
+
+" ── Editing ──────────────────────────────────────────────────
+set backspace=indent,eol,start
+set hidden                    " Allow hidden buffers
+set autoread                  " Auto-reload changed files
+set clipboard=unnamed         " Use system clipboard
+set mouse=a                   " Enable mouse support
+set undofile                  " Persistent undo
+set noswapfile                " Disable swap files (undo is sufficient)
+
+" ── Splits ───────────────────────────────────────────────────
+set splitbelow
+set splitright
+
+" ── Key mappings ─────────────────────────────────────────────
+" Leader key
+let mapleader = " "
+
+" Clear search highlighting
+nnoremap <Leader><space> :nohlsearch<CR>
+
+" Quick save and quit
+nnoremap <Leader>w :w<CR>
+nnoremap <Leader>q :q<CR>
+
+" Better split navigation
+nnoremap <C-h> <C-w>h
+nnoremap <C-j> <C-w>j
+nnoremap <C-k> <C-w>k
+nnoremap <C-l> <C-w>l
+
+" Move lines up/down in visual mode
+vnoremap J :m '>+1<CR>gv=gv
+vnoremap K :m '<-2<CR>gv=gv

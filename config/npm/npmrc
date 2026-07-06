@@ -1,0 +1,7 @@
+# npm configuration
+# Installs global packages to ~/.local instead of /usr/local,
+# avoiding the need for sudo on global installs.
+
+prefix=${HOME}/.local
+fund=false
+audit-level=high

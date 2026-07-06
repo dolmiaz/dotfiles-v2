@@ -1,0 +1,27 @@
+# Prettier ignore
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+out/
+.next/
+
+# Coverage
+coverage/
+
+# Lock files
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Auto-generated
+*.min.js
+*.min.css
+*.bundle.js
+
+# Data
+*.csv
+*.tsv
