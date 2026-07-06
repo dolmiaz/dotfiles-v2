@@ -18,8 +18,8 @@ macOS / Linux を横断して開発環境を再現するためのクロスプラ
 ## クイックスタート
 
 ```sh
-git clone https://github.com/dolmiaz/dotfiles.git
-cd dotfiles
+git clone https://github.com/dolmiaz/dotfiles-v2.git
+cd dotfiles-v2
 
 # まずは dry-run で何が行われるかを確認（推奨）
 ./install.sh --dry-run
@@ -192,7 +192,7 @@ zsh の設定は次の順序で読み込まれます。
 ## リポジトリ構成
 
 ```
-dotfiles/
+dotfiles-v2/
 ├── install.sh          # インストーラ本体
 ├── doctor.sh           # 診断・修復ツール
 ├── lib/
