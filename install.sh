@@ -65,7 +65,14 @@ done
 
 # ---------- load libraries ----------------------------------------------------
 
-SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
+_target="${BASH_SOURCE[0]}"
+while [[ -L "$_target" ]]; do
+    _dir="$(cd "$(dirname "$_target")" && pwd)"
+    _target="$(readlink "$_target")"
+    [[ "$_target" != /* ]] && _target="$_dir/$_target"
+done
+SCRIPT_DIR="$(cd "$(dirname "$_target")" && pwd)"
+unset _target _dir
 
 source "$SCRIPT_DIR/lib/common.sh"
 
