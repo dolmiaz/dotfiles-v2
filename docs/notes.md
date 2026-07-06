@@ -391,3 +391,17 @@ Round 3 の「教訓・残課題」に挙げた項目一式を解消。
   失敗として記録するようにした。starship / zoxide の公式 installer 失敗も同様に扱う。
 - Vim の `clipboard` option は `+clipboard` 非対応 build でエラーにならないよう
   `has('clipboard')` で guard した。
+
+## 2026-07-07: Round 17 修正
+
+- `pkg_run_priv` は dry-run かつ sudo が無い非 root 環境では abort せず、`sudo ...`
+  を DRY-RUN 表示して成功扱いにするようにした。実行時は従来どおり sudo 不在をエラーにする。
+- `~/.npmrc` legacy 修復は backup の成功を必須化し、backup に失敗した場合は
+  `~/.npmrc` に触らず中断するようにした。
+- VS Code doctor は `settings.json` に加えて、常時導入拡張と実在する toolchain に対応する
+  拡張の欠落を `code --list-extensions` 1 回で検出するようにした。list 取得に失敗する
+  headless 環境では false FAIL を避ける。
+- ZDOTDIR の `.zprofile` を doctor の check / repair 対象に追加し、login shell の
+  `path_helper` / `brew shellenv` 対応 entry を欠落時に copy 再配置するようにした。
+- `common.sh` の DOTFILES_DIR 解決が doctor の repo root 検出を壊すという指摘は実測で
+  反証できたため、解決ロジックは変更せず、install.sh 側の説明コメントのみ修正した。

@@ -264,7 +264,26 @@ repair_dotfiles_zdotdir() {
     log "Deployed config/zsh entry files to ~/.config/zsh/"
 }
 
-# 4. env.d/ has .zsh files
+# 4. ZDOTDIR .zprofile exists and keeps login-shell PATH handling
+check_dotfiles_zprofile() {
+    [[ -r "$HOME/.config/zsh/.zprofile" ]] || return 1
+    grep -Eq 'path_helper|brew shellenv' "$HOME/.config/zsh/.zprofile" || return 1
+}
+repair_dotfiles_zprofile() {
+    mkdir -p "$HOME/.config/zsh" || {
+        warn "Failed to create zsh config directory: $HOME/.config/zsh"
+        return 1
+    }
+    local src="$DOTFILES_DIR/config/zsh/.zprofile"
+    if [[ ! -r "$src" ]]; then
+        warn "config/zsh/.zprofile not found in dotfiles repository"
+        return 1
+    fi
+    _zsh_deploy_copy "$src" "$HOME/.config/zsh/.zprofile" || return 1
+    log "Deployed config/zsh/.zprofile to ~/.config/zsh/.zprofile"
+}
+
+# 5. env.d/ has .zsh files
 check_dotfiles_envd() {
     [[ -d "$HOME/.config/zsh/env.d" ]] || return 1
     if [[ -d "$DOTFILES_DIR/config/zsh/env.d" ]]; then
@@ -285,7 +304,7 @@ repair_dotfiles_envd() {
     log "Repaired env.d/ files in ~/.config/zsh/env.d/"
 }
 
-# 5. conf.d/ has .zsh files
+# 6. conf.d/ has .zsh files
 check_dotfiles_confd() {
     [[ -d "$HOME/.config/zsh/conf.d" ]] || return 1
     if [[ -d "$DOTFILES_DIR/config/zsh/conf.d" ]]; then
@@ -306,7 +325,7 @@ repair_dotfiles_confd() {
     log "Repaired conf.d/ files in ~/.config/zsh/conf.d/"
 }
 
-# 6. ~/.local/bin is in PATH
+# 7. ~/.local/bin is in PATH
 check_path_local_bin() {
     local zsh_path
     [[ ":$PATH:" == *":$HOME/.local/bin:"* ]] && return 0
@@ -317,13 +336,13 @@ check_path_local_bin() {
     return 1
 }
 
-# 7. git user.name and user.email configured
+# 8. git user.name and user.email configured
 check_git_user() {
     git config --global user.name &>/dev/null || return 1
     git config --global user.email &>/dev/null || return 1
 }
 
-# 8. default shell is zsh
+# 9. default shell is zsh
 check_shell_zsh() {
     local user; user="${USER:-$(id -un)}"
     local current_shell
@@ -360,7 +379,7 @@ repair_shell_zsh() {
     fi
 }
 
-# 9. /etc/sudoers.d/dotfiles-path exists (optional -- the installer does not
+# 10. /etc/sudoers.d/dotfiles-path exists (optional -- the installer does not
 #    deploy this file, so its absence is SKIP rather than FAIL)
 check_sudoers_path() {
     if [[ -f /etc/sudoers.d/dotfiles-path ]]; then
@@ -383,6 +402,7 @@ CHECKS=(
     "~/.zshenv|check_dotfiles_zshenv|repair_dotfiles_zshenv|no"
     "~/.zshrc landing pad|check_dotfiles_zshrc|repair_dotfiles_zshrc|no"
     "ZDOTDIR = ~/.config/zsh|check_dotfiles_zdotdir|repair_dotfiles_zdotdir|no"
+    "ZDOTDIR .zprofile|check_dotfiles_zprofile|repair_dotfiles_zprofile|no"
     "env.d/ files|check_dotfiles_envd|repair_dotfiles_envd|no"
     "conf.d/ files|check_dotfiles_confd|repair_dotfiles_confd|no"
     "~/.local/bin in PATH|check_path_local_bin||no"

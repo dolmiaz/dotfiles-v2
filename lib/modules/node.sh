@@ -177,15 +177,35 @@ repair_npm_legacy_config() {
   fi
 
   if declare -f backup_file &>/dev/null; then
-    backup_file "$npmrc"
+    backup_file "$npmrc" || {
+      warn "Backup failed -- not touching ~/.npmrc"
+      return 1
+    }
   else
-    cp -a "$npmrc" "${npmrc}.bak.$(date +%Y%m%d%H%M%S)"
+    cp -a "$npmrc" "${npmrc}.bak.$(date +%Y%m%d%H%M%S)" || {
+      warn "Backup failed -- not touching ~/.npmrc"
+      return 1
+    }
   fi
 
   local tmp
-  tmp="$(mktemp "${TMPDIR:-/tmp}/npmrc.XXXXXX")"
-  grep -Ev '^[[:space:]]*(prefix|globalconfig)[[:space:]]*=' "$npmrc" > "$tmp" || true
-  run mv "$tmp" "$npmrc"
+  tmp="$(mktemp "${TMPDIR:-/tmp}/npmrc.XXXXXX")" || {
+    warn "Failed to create temporary npmrc"
+    return 1
+  }
+  grep -Ev '^[[:space:]]*(prefix|globalconfig)[[:space:]]*=' "$npmrc" > "$tmp" || {
+    local grep_rc=$?
+    if (( grep_rc > 1 )); then
+      warn "Failed to filter legacy npm config: $npmrc"
+      rm -f "$tmp"
+      return 1
+    fi
+  }
+  run mv "$tmp" "$npmrc" || {
+    warn "Failed to update legacy npm config: $npmrc"
+    rm -f "$tmp"
+    return 1
+  }
   log "Removed legacy npm prefix/globalconfig from $npmrc"
 }
 

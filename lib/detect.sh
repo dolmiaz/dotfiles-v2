@@ -107,6 +107,8 @@ pkg_run_priv() {
         run "$@"
     elif have sudo; then
         run sudo "$@"
+    elif [[ "${DRY_RUN:-0}" == "1" ]]; then
+        run sudo "$@"
     else
         die "sudo is required to install packages but was not found (run as root or install sudo)"
     fi

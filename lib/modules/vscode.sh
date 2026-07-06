@@ -77,20 +77,91 @@ _vscode_install_extensions() {
   return 0
 }
 
+_vscode_has_c_cpp_toolchain() {
+  have gcc || have cc
+}
+
+_vscode_has_rust_toolchain() {
+  have rustup || [[ -x "$(_vscode_cargo_bin_dir)/rustup" ]]
+}
+
+_vscode_has_uv_toolchain() {
+  have uv || [[ -x "$HOME/.local/bin/uv" ]]
+}
+
+_vscode_has_node_toolchain() {
+  have npm
+}
+
 _vscode_should_install_c_cpp_extensions() {
-  have gcc || have cc || [[ "${INSTALL_C_CPP:-0}" == "1" ]]
+  _vscode_has_c_cpp_toolchain || [[ "${INSTALL_C_CPP:-0}" == "1" ]]
 }
 
 _vscode_should_install_rust_extensions() {
-  have rustup || [[ "${INSTALL_RUST:-0}" == "1" ]] || [[ -x "$(_vscode_cargo_bin_dir)/rustup" ]]
+  _vscode_has_rust_toolchain || [[ "${INSTALL_RUST:-0}" == "1" ]]
 }
 
 _vscode_should_install_uv_extensions() {
-  have uv || [[ "${INSTALL_UV:-0}" == "1" ]] || [[ -x "$HOME/.local/bin/uv" ]]
+  _vscode_has_uv_toolchain || [[ "${INSTALL_UV:-0}" == "1" ]]
 }
 
 _vscode_should_install_node_extensions() {
-  have npm || [[ "${INSTALL_NODE:-0}" == "1" ]]
+  _vscode_has_node_toolchain || [[ "${INSTALL_NODE:-0}" == "1" ]]
+}
+
+_vscode_expected_extensions() {
+  local ext
+  for ext in "${VSCODE_EXTENSIONS_ALWAYS[@]}"; do
+    printf '%s\n' "$ext"
+  done
+
+  if _vscode_has_c_cpp_toolchain; then
+    for ext in "${VSCODE_EXTENSIONS_C_CPP[@]}"; do
+      printf '%s\n' "$ext"
+    done
+  fi
+  if _vscode_has_rust_toolchain; then
+    for ext in "${VSCODE_EXTENSIONS_RUST[@]}"; do
+      printf '%s\n' "$ext"
+    done
+  fi
+  if _vscode_has_uv_toolchain; then
+    for ext in "${VSCODE_EXTENSIONS_UV[@]}"; do
+      printf '%s\n' "$ext"
+    done
+  fi
+  if _vscode_has_node_toolchain; then
+    for ext in "${VSCODE_EXTENSIONS_NODE[@]}"; do
+      printf '%s\n' "$ext"
+    done
+  fi
+}
+
+_vscode_extension_installed() {
+  local installed="$1" ext="$2" ext_lower
+  ext_lower="$(printf '%s\n' "$ext" | tr '[:upper:]' '[:lower:]')"
+  printf '%s\n' "$installed" | grep -Fxq "$ext_lower"
+}
+
+_vscode_check_extensions() {
+  local code_cmd="$1"
+  local installed expected ext missing=0
+
+  if ! installed="$("$code_cmd" --list-extensions 2>/dev/null)"; then
+    return 0
+  fi
+  installed="$(printf '%s\n' "$installed" | tr '[:upper:]' '[:lower:]')"
+  expected="$(_vscode_expected_extensions)"
+
+  while IFS= read -r ext; do
+    [[ -n "$ext" ]] || continue
+    if ! _vscode_extension_installed "$installed" "$ext"; then
+      warn "Missing VS Code extension: $ext"
+      missing=1
+    fi
+  done <<< "$expected"
+
+  [[ "$missing" == "0" ]]
 }
 
 _vscode_settings_path() {
@@ -200,11 +271,15 @@ _vscode_deploy_settings() {
 # Return: 0 = OK, 2 = SKIP (not installed)
 check_vscode() {
   # If VS Code is not installed, treat as skipped
-  _vscode_command &>/dev/null || return 2
+  local code_cmd
+  code_cmd="$(_vscode_command 2>/dev/null || true)"
+  [[ -n "$code_cmd" ]] || return 2
+
   local settings_file
   settings_file="$(_vscode_settings_path 2>/dev/null || true)"
   [[ -n "$settings_file" ]] || return 1
   [[ -f "$settings_file" ]] || return 1
+  _vscode_check_extensions "$code_cmd" || return 1
   return 0
 }
 

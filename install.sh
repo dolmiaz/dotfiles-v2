@@ -76,10 +76,7 @@ unset _target _dir
 
 source "$SCRIPT_DIR/lib/common.sh"
 
-# Override DOTFILES_DIR after sourcing common.sh.  common.sh computes it via
-# "dirname(BASH_SOURCE[1]) / .." which assumes the sourcing script lives in a
-# subdirectory.  Since install.sh lives at the repo root, the automatic
-# resolution goes one level too far up.
+# Set DOTFILES_DIR explicitly after sourcing common.sh as a harmless safety no-op.
 DOTFILES_DIR="$SCRIPT_DIR"
 export DOTFILES_DIR
 
