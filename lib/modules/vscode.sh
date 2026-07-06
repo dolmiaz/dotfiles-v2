@@ -62,6 +62,28 @@ _vscode_install_extensions() {
   done
 }
 
+_vscode_settings_path() {
+  local os_name="${OS:-}"
+  if [[ -z "$os_name" ]]; then
+    case "$(uname -s 2>/dev/null || true)" in
+      Darwin) os_name="macos" ;;
+      Linux)  os_name="linux" ;;
+    esac
+  fi
+
+  case "$os_name" in
+    macos)
+      printf '%s\n' "$HOME/Library/Application Support/Code/User/settings.json"
+      ;;
+    debian|redhat|linux)
+      printf '%s\n' "$HOME/.config/Code/User/settings.json"
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
 install_vscode() {
   VSCODE_CODE_CMD="$(_vscode_command 2>/dev/null || true)"
 
@@ -135,18 +157,11 @@ _vscode_deploy_settings() {
   [[ -r "$src" ]] || return 0
 
   local dest
-  case "${OS:-}" in
-    macos)
-      dest="$HOME/Library/Application Support/Code/User/settings.json"
-      ;;
-    debian|redhat)
-      dest="$HOME/.config/Code/User/settings.json"
-      ;;
-    *)
-      warn "Unknown OS -- skipping VS Code settings.json deployment"
-      return 0
-      ;;
-  esac
+  dest="$(_vscode_settings_path 2>/dev/null || true)"
+  if [[ -z "$dest" ]]; then
+    warn "Unknown OS -- skipping VS Code settings.json deployment"
+    return 0
+  fi
 
   deploy_file "$src" "$dest"
 }
@@ -155,6 +170,10 @@ _vscode_deploy_settings() {
 check_vscode() {
   # If VS Code is not installed, treat as skipped
   _vscode_command &>/dev/null || return 2
+  local settings_file
+  settings_file="$(_vscode_settings_path 2>/dev/null || true)"
+  [[ -n "$settings_file" ]] || return 1
+  [[ -f "$settings_file" ]] || return 1
   return 0
 }
 

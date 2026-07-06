@@ -287,19 +287,14 @@ if [[ "$GIT_CONFIG" != "SKIP" ]]; then
         git_conflict_style="diff3"
     fi
     if [[ "$OS" == "macos" ]] && _git_version_at_least 2 36; then
-        git_enable_fsmonitor=1
+        git_enable_untrackedcache=1
     else
-        git_enable_fsmonitor=0
+        git_enable_untrackedcache=0
     fi
     if _git_version_at_least 2 37; then
         git_enable_auto_setup_remote=1
     else
         git_enable_auto_setup_remote=0
-    fi
-
-    if [[ -z "$git_name" ]] || [[ -z "$git_email" ]]; then
-        warn "git user.name or user.email is empty — skipping git config generation"
-        warn "Run install.sh again without --yes to set git identity interactively"
     fi
 
     # Determine credential helper based on OS.
@@ -318,19 +313,45 @@ if [[ "$GIT_CONFIG" != "SKIP" ]]; then
     template="$DOTFILES_DIR/config/git/config.template"
     git_config_dest="$HOME/.config/git/config"
 
-    if [[ -z "$git_name" ]] || [[ -z "$git_email" ]]; then
+    # Keep template substitutions to a single logical gitconfig value.
+    sanitize_first_line() {
+        printf '%s' "$1" | tr -d '\r' | sed -n '1p'
+    }
+
+    # Escape characters that are special inside quoted gitconfig strings.
+    escape_gitconfig_string() {
+        printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g'
+    }
+
+    # Escape sed replacement strings (handle &, \, / in user input).
+    escape_sed() {
+        printf '%s' "$1" | sed -e 's/[\/&\\]/\\&/g'
+    }
+
+    git_name_value="$(sanitize_first_line "$git_name")"
+    git_email_value="$(sanitize_first_line "$git_email")"
+    git_editor_value="$(sanitize_first_line "$git_editor")"
+    git_credential_helper_value="$(sanitize_first_line "$git_credential_helper")"
+    git_conflict_style_value="$(sanitize_first_line "$git_conflict_style")"
+
+    if [[ -z "$git_name_value" ]] || [[ -z "$git_email_value" ]]; then
+        warn "git user.name or user.email is empty — skipping git config generation"
+        warn "Run install.sh again without --yes to set git identity interactively"
+    fi
+
+    if [[ -z "$git_name_value" ]] || [[ -z "$git_email_value" ]]; then
         : # skip git config generation (warning already printed above)
     elif [[ "$DRY_RUN" == "1" ]]; then
         log "[DRY-RUN] Generate git config from template -> $git_config_dest"
-        log "[DRY-RUN]   user.name  = $git_name"
-        log "[DRY-RUN]   user.email = $git_email"
-        log "[DRY-RUN]   editor     = $git_editor"
-        log "[DRY-RUN]   credential = $git_credential_helper"
-        log "[DRY-RUN]   conflictstyle = $git_conflict_style"
-        if [[ "$git_enable_fsmonitor" == "1" ]]; then
-            log "[DRY-RUN]   fsmonitor/untrackedcache = enabled"
+        log "[DRY-RUN]   user.name  = $git_name_value"
+        log "[DRY-RUN]   user.email = $git_email_value"
+        log "[DRY-RUN]   editor     = $git_editor_value"
+        log "[DRY-RUN]   credential = $git_credential_helper_value"
+        log "[DRY-RUN]   conflictstyle = $git_conflict_style_value"
+        if [[ "$git_enable_untrackedcache" == "1" ]]; then
+            log "[DRY-RUN]   untrackedcache = enabled"
         else
-            log "[DRY-RUN]   fsmonitor/untrackedcache = omitted"
+            log "[DRY-RUN]   untrackedcache = omitted"
         fi
         if [[ "$git_enable_auto_setup_remote" == "1" ]]; then
             log "[DRY-RUN]   push.autoSetupRemote = enabled"
@@ -345,16 +366,11 @@ if [[ "$GIT_CONFIG" != "SKIP" ]]; then
         # Read template content.
         git_config_content="$(cat "$template")"
 
-        # Escape sed replacement strings (handle &, \, / in user input).
-        escape_sed() {
-            printf '%s' "$1" | sed -e 's/[&/\]/\\&/g'
-        }
-
-        local_name="$(escape_sed "$git_name")"
-        local_email="$(escape_sed "$git_email")"
-        local_editor="$(escape_sed "$git_editor")"
-        local_cred="$(escape_sed "$git_credential_helper")"
-        local_conflict_style="$(escape_sed "$git_conflict_style")"
+        local_name="$(escape_sed "$(escape_gitconfig_string "$git_name_value")")"
+        local_email="$(escape_sed "$(escape_gitconfig_string "$git_email_value")")"
+        local_editor="$(escape_sed "$git_editor_value")"
+        local_cred="$(escape_sed "$git_credential_helper_value")"
+        local_conflict_style="$(escape_sed "$git_conflict_style_value")"
 
         git_config_content="$(printf '%s' "$git_config_content" | sed \
             -e "s/__GIT_USER_NAME__/$local_name/g" \
@@ -377,7 +393,7 @@ if [[ "$GIT_CONFIG" != "SKIP" ]]; then
         fi
 
         # Remove Git-version-sensitive sections when the installed git is too old.
-        if [[ "$git_enable_fsmonitor" == "1" ]]; then
+        if [[ "$git_enable_untrackedcache" == "1" ]]; then
             git_config_content="$(printf '%s' "$git_config_content" | sed -e '/^# __BEGIN_GIT236__$/d' -e '/^# __END_GIT236__$/d')"
         else
             git_config_content="$(printf '%s' "$git_config_content" | sed '/^# __BEGIN_GIT236__$/,/^# __END_GIT236__$/d')"
@@ -407,9 +423,10 @@ if [[ "$GIT_CONFIG" != "SKIP" ]]; then
             if [[ -S "$_op_sock" ]]; then
                 git_signing_key="$(SSH_AUTH_SOCK="$_op_sock" ssh-add -L 2>/dev/null | head -n 1 || true)"
             fi
+            git_signing_key="$(sanitize_first_line "$git_signing_key")"
 
             if [[ -n "$git_signing_key" ]]; then
-                local_signing_key="$(escape_sed "key::$git_signing_key")"
+                local_signing_key="$(escape_sed "$(sanitize_first_line "key::$git_signing_key")")"
                 git_config_content="$(printf '%s' "$git_config_content" | sed -e '/^# __BEGIN_1PASSWORD__$/d' -e '/^# __END_1PASSWORD__$/d')"
                 git_config_content="$(printf '%s' "$git_config_content" | sed \
                     -e "s/__GIT_SIGNING_KEY__/$local_signing_key/g")"

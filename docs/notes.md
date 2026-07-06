@@ -310,3 +310,19 @@ Round 3 の「教訓・残課題」に挙げた項目一式を解消。
   `--help` は usage のみ、`--quiet` は検出ログなしで実行されるよう変更。
 - `env.d/00-xdg.zsh` の mkdir は read-only HOME 等で zsh 起動時にノイズを出さないよう、
   各 guarded mkdir に `2>/dev/null || true` を付けてエラーを抑止。
+
+## 2026-07-07: Round 10 修正
+
+- doctor の `--fix` で sudo パスワードプロンプトが stderr 抑止に隠れる問題を解消。
+  base packages / CLI tools / C/C++ toolchain / VS Code はパッケージ導入系の修復を
+  含むため `--fix-sudo` 対象に変更し、plain `--fix` では実行しないようにした。
+- git config 生成では `user.name` / `user.email` を quote し、全置換値を 1 行へ
+  sanitize。name/email は gitconfig 文字列用に backslash と double quote を
+  escape してから sed 置換するようにした。
+- sandboxed tool / CI 互換のため、Git テンプレートから `core.fsmonitor` の既定有効化を
+  削除。macOS かつ対応 Git では `core.untrackedcache` のみ残す。
+- ZDOTDIR 側の `.zshenv` / `.zshrc` は単なる存在ではなく、それぞれ `env.d` /
+  `conf.d` を参照していることまで doctor で確認し、修復時は entry file を再デプロイする。
+- VS Code は `code` コマンドがある場合、OS 別の `settings.json` が存在することも
+  doctor で確認するようにした。
+- `grep --color=auto` 非互換という指摘は macOS BSD grep で実測反証できたため不採用。

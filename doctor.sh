@@ -198,20 +198,34 @@ repair_dotfiles_zshrc() {
     fi
 }
 
-# 3. ZDOTDIR directory exists
+# 3. ZDOTDIR entry files exist and source module directories
 check_dotfiles_zdotdir() {
     [[ -d "$HOME/.config/zsh" ]] || return 1
     [[ -r "$HOME/.config/zsh/.zshenv" ]] || return 1
     [[ -r "$HOME/.config/zsh/.zshrc" ]] || return 1
+    grep -q 'env.d' "$HOME/.config/zsh/.zshenv" || return 1
+    grep -q 'conf.d' "$HOME/.config/zsh/.zshrc" || return 1
 }
 repair_dotfiles_zdotdir() {
     mkdir -p "$HOME/.config/zsh"
-    if [[ -d "$DOTFILES_DIR/config/zsh" ]]; then
-        cp -Rn "$DOTFILES_DIR/config/zsh/." "$HOME/.config/zsh/" 2>/dev/null || true
-        log "Created ~/.config/zsh and copied config files"
-    else
-        log "Created ~/.config/zsh (no config/zsh source found to copy)"
+    local src_env="$DOTFILES_DIR/config/zsh/.zshenv"
+    local src_rc="$DOTFILES_DIR/config/zsh/.zshrc"
+
+    if [[ ! -r "$src_env" ]] || [[ ! -r "$src_rc" ]]; then
+        warn "config/zsh entry files not found in dotfiles repository"
+        return 1
     fi
+
+    if declare -f deploy_file &>/dev/null; then
+        deploy_file "$src_env" "$HOME/.config/zsh/.zshenv" "copy"
+        deploy_file "$src_rc" "$HOME/.config/zsh/.zshrc" "copy"
+    else
+        backup_file_simple "$HOME/.config/zsh/.zshenv"
+        cp "$src_env" "$HOME/.config/zsh/.zshenv"
+        backup_file_simple "$HOME/.config/zsh/.zshrc"
+        cp "$src_rc" "$HOME/.config/zsh/.zshrc"
+    fi
+    log "Deployed config/zsh entry files to ~/.config/zsh/"
 }
 
 # 4. env.d/ has .zsh files
@@ -335,15 +349,15 @@ CHECKS=(
     "env.d/ files|check_dotfiles_envd|repair_dotfiles_envd|no"
     "conf.d/ files|check_dotfiles_confd|repair_dotfiles_confd|no"
     "~/.local/bin in PATH|check_path_local_bin||no"
-    "base packages|check_base|repair_base|no"
-    "CLI tools|check_cli_tools|repair_cli_tools|no"
-    "C/C++ toolchain|check_c_cpp|repair_c_cpp|no"
+    "base packages|check_base|repair_base|sudo"
+    "CLI tools|check_cli_tools|repair_cli_tools|sudo"
+    "C/C++ toolchain|check_c_cpp|repair_c_cpp|sudo"
     "Rust|check_rust|repair_rust|no"
     "uv|check_uv|repair_uv|no"
     "npm prefix/cache|check_node|repair_node|no"
     "npm dir ownership|check_npm_ownership|repair_npm_ownership|sudo"
     "~/.npmrc legacy|check_npm_legacy_config|repair_npm_legacy_config|no"
-    "VS Code|check_vscode|repair_vscode|no"
+    "VS Code|check_vscode|repair_vscode|sudo"
     "zsh plugins|check_zsh_plugins|repair_zsh_plugins|no"
     "git user config|check_git_user||no"
     "default shell = zsh|check_shell_zsh|repair_shell_zsh|sudo"
