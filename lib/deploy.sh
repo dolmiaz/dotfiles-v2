@@ -118,23 +118,32 @@ deploy_file() {
 
     # Back up existing file at destination. backup_file keeps the existing
     # policy for symlinks, including matching repo symlinks.
-    backup_file "$dest" "$src"
+    backup_file "$dest" "$src" || {
+        warn "Backup failed -- not touching $dest"
+        return 1
+    }
 
     # Ensure parent directory exists.
     local dest_dir
     dest_dir="$(dirname "$dest")"
     if [[ ! -d "$dest_dir" ]]; then
-        run mkdir -p "$dest_dir"
+        run mkdir -p "$dest_dir" || return 1
     fi
 
     # Remove existing file / symlink before deploying.
     if [[ -e "$dest" ]] || [[ -L "$dest" ]]; then
-        run rm -f "$dest"
+        run rm -f "$dest" || {
+            warn "Failed to remove existing destination: $dest"
+            return 1
+        }
     fi
 
     case "$mode" in
         link)
-            run ln -sf "$src" "$dest"
+            run ln -sf "$src" "$dest" || {
+                warn "Failed to link: $dest -> $src"
+                return 1
+            }
             if [[ "$DRY_RUN" == "1" ]]; then
                 log "[DRY-RUN] Would link: $dest -> $src"
             else
@@ -142,7 +151,10 @@ deploy_file() {
             fi
             ;;
         copy)
-            run cp -a "$src" "$dest"
+            run cp -a "$src" "$dest" || {
+                warn "Failed to copy: $src -> $dest"
+                return 1
+            }
             if [[ "$DRY_RUN" == "1" ]]; then
                 log "[DRY-RUN] Would copy: $src -> $dest"
             else

@@ -157,6 +157,49 @@ fi
 
 # ---------- dotfiles-specific check/repair functions --------------------------
 
+_zsh_deploy_copy() {
+    local src="$1" dest="$2"
+
+    if declare -f deploy_file &>/dev/null; then
+        deploy_file "$src" "$dest" "copy" || return 1
+    else
+        if [[ -e "$dest" ]] || [[ -L "$dest" ]]; then
+            backup_file_simple "$dest"
+            rm -f "$dest" || {
+                warn "Failed to remove broken zsh file: $dest"
+                return 1
+            }
+        fi
+        cp "$src" "$dest" || {
+            warn "Failed to copy zsh file: $src -> $dest"
+            return 1
+        }
+    fi
+}
+
+_repair_zsh_module_dir() {
+    local src_dir="$1" dest_dir="$2" label="$3"
+    local src dest
+
+    mkdir -p "$dest_dir" || {
+        warn "Failed to create $label directory: $dest_dir"
+        return 1
+    }
+
+    if [[ ! -d "$src_dir" ]]; then
+        warn "$label source directory not found in dotfiles repository"
+        return 1
+    fi
+
+    for src in "$src_dir"/*.zsh; do
+        [[ -e "$src" ]] || continue
+        dest="$dest_dir/$(basename "$src")"
+        if [[ ! -e "$dest" ]] || [[ -L "$dest" ]] || [[ ! -r "$dest" ]]; then
+            _zsh_deploy_copy "$src" "$dest" || return 1
+        fi
+    done
+}
+
 # 1. ~/.zshenv exists and sets ZDOTDIR
 check_dotfiles_zshenv() {
     [[ -r "$HOME/.zshenv" ]] || return 1
@@ -216,15 +259,8 @@ repair_dotfiles_zdotdir() {
         return 1
     fi
 
-    if declare -f deploy_file &>/dev/null; then
-        deploy_file "$src_env" "$HOME/.config/zsh/.zshenv" "copy"
-        deploy_file "$src_rc" "$HOME/.config/zsh/.zshrc" "copy"
-    else
-        backup_file_simple "$HOME/.config/zsh/.zshenv"
-        cp "$src_env" "$HOME/.config/zsh/.zshenv"
-        backup_file_simple "$HOME/.config/zsh/.zshrc"
-        cp "$src_rc" "$HOME/.config/zsh/.zshrc"
-    fi
+    _zsh_deploy_copy "$src_env" "$HOME/.config/zsh/.zshenv" || return 1
+    _zsh_deploy_copy "$src_rc" "$HOME/.config/zsh/.zshrc" || return 1
     log "Deployed config/zsh entry files to ~/.config/zsh/"
 }
 
@@ -245,14 +281,8 @@ check_dotfiles_envd() {
     (( count > 0 ))
 }
 repair_dotfiles_envd() {
-    mkdir -p "$HOME/.config/zsh/env.d"
-    if [[ -d "$DOTFILES_DIR/config/zsh/env.d" ]]; then
-        cp -rn "$DOTFILES_DIR/config/zsh/env.d/"*.zsh "$HOME/.config/zsh/env.d/" 2>/dev/null || true
-        log "Copied env.d/ files to ~/.config/zsh/env.d/"
-    else
-        warn "config/zsh/env.d/ not found in dotfiles repository"
-        return 1
-    fi
+    _repair_zsh_module_dir "$DOTFILES_DIR/config/zsh/env.d" "$HOME/.config/zsh/env.d" "env.d" || return 1
+    log "Repaired env.d/ files in ~/.config/zsh/env.d/"
 }
 
 # 5. conf.d/ has .zsh files
@@ -272,14 +302,8 @@ check_dotfiles_confd() {
     (( count > 0 ))
 }
 repair_dotfiles_confd() {
-    mkdir -p "$HOME/.config/zsh/conf.d"
-    if [[ -d "$DOTFILES_DIR/config/zsh/conf.d" ]]; then
-        cp -rn "$DOTFILES_DIR/config/zsh/conf.d/"*.zsh "$HOME/.config/zsh/conf.d/" 2>/dev/null || true
-        log "Copied conf.d/ files to ~/.config/zsh/conf.d/"
-    else
-        warn "config/zsh/conf.d/ not found in dotfiles repository"
-        return 1
-    fi
+    _repair_zsh_module_dir "$DOTFILES_DIR/config/zsh/conf.d" "$HOME/.config/zsh/conf.d" "conf.d" || return 1
+    log "Repaired conf.d/ files in ~/.config/zsh/conf.d/"
 }
 
 # 6. ~/.local/bin is in PATH

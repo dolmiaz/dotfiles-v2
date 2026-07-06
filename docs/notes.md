@@ -349,3 +349,15 @@ Round 3 の「教訓・残課題」に挙げた項目一式を解消。
   `--link` 時も常に copy 配置に変更した。
 - doctor の sudo 修復は root 直実行かつ sudo が無い環境でも動くよう、
   `pkg_run_priv` を優先し、fallback でも root の場合は sudo なしで実行するようにした。
+
+## 2026-07-07: Round 13 修正
+
+- shell 関数が `if repair_fn` のような条件文脈で呼ばれると `errexit` が効かないため、
+  deploy_file の backup / mkdir / rm / link / copy を明示 rc チェック化。backup 失敗時は
+  破壊的手順へ進まず中断するようにした。
+- npmrc symlink 解参照も temp 作成・copy・atomic replace の各手順を明示チェックし、
+  copy 成功前に元 symlink を削除しない順序へ変更した。
+- install.sh の npmrc skip は実ファイルの場合だけに限定し、symlink や broken symlink は
+  copy deploy に落として実ファイルへ置き換えるようにした。
+- doctor の env.d / conf.d 修復は `cp -rn` をやめ、missing / symlink / unreadable な
+  entry を個別に copy redeploy して broken symlink も置き換えられるようにした。

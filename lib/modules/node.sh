@@ -24,19 +24,37 @@ _npm_dereference_userconfig() {
 
   local dir tmp template
   dir="$(dirname "$userconfig")"
-  tmp="$(mktemp "$dir/npmrc.XXXXXX")"
+  tmp="$(mktemp "$dir/npmrc.XXXXXX")" || {
+    warn "Failed to create temporary npmrc next to $userconfig"
+    return 1
+  }
   template="${DOTFILES_DIR:-}/config/npm/npmrc"
 
   if [[ -e "$userconfig" ]]; then
-    cp -pL "$userconfig" "$tmp"
+    cp -pL "$userconfig" "$tmp" || {
+      warn "Failed to copy npm userconfig target: $userconfig"
+      rm -f "$tmp"
+      return 1
+    }
   elif [[ -r "$template" ]]; then
-    cp -p "$template" "$tmp"
+    cp -p "$template" "$tmp" || {
+      warn "Failed to seed npm userconfig from template: $template"
+      rm -f "$tmp"
+      return 1
+    }
   else
-    : > "$tmp"
+    : > "$tmp" || {
+      warn "Failed to initialize temporary npmrc: $tmp"
+      rm -f "$tmp"
+      return 1
+    }
   fi
 
-  rm -f "$userconfig"
-  mv "$tmp" "$userconfig"
+  mv -f "$tmp" "$userconfig" || {
+    warn "Failed to replace npm userconfig symlink: $userconfig"
+    rm -f "$tmp"
+    return 1
+  }
   log "Replaced npm userconfig symlink with real file: $userconfig"
 }
 
@@ -68,24 +86,24 @@ _ensure_npm_prefix_config() {
 
   export NPM_CONFIG_USERCONFIG="$(_npm_userconfig)"
   export NPM_CONFIG_CACHE="$(_npm_cache_dir)"
-  run mkdir -p "$(dirname "$NPM_CONFIG_USERCONFIG")"
-  run mkdir -p "$NPM_CONFIG_CACHE"
-  _npm_dereference_userconfig "$NPM_CONFIG_USERCONFIG"
+  run mkdir -p "$(dirname "$NPM_CONFIG_USERCONFIG")" || return 1
+  run mkdir -p "$NPM_CONFIG_CACHE" || return 1
+  _npm_dereference_userconfig "$NPM_CONFIG_USERCONFIG" || return 1
 
   if [[ ! -f "$NPM_CONFIG_USERCONFIG" ]] && [[ -r "${DOTFILES_DIR:-}/config/npm/npmrc" ]]; then
-    run cp -a "$DOTFILES_DIR/config/npm/npmrc" "$NPM_CONFIG_USERCONFIG"
+    run cp -a "$DOTFILES_DIR/config/npm/npmrc" "$NPM_CONFIG_USERCONFIG" || return 1
   fi
 
   local cache prefix
   cache="$(env -u NPM_CONFIG_CACHE npm config get cache 2>/dev/null || true)"
   if [[ "$cache" != "$(_npm_cache_dir)" ]]; then
-    run npm config set cache "$(_npm_cache_dir)"
+    run npm config set cache "$(_npm_cache_dir)" || return 1
     log "Set npm cache to $(_npm_cache_dir)"
   fi
 
   if _node_has_nvm; then
     if [[ -f "$NPM_CONFIG_USERCONFIG" ]] && grep -Eq '^[[:space:]]*prefix[[:space:]]*=' "$NPM_CONFIG_USERCONFIG"; then
-      run npm config delete prefix
+      run npm config delete prefix || return 1
       log "npm prefix is left to nvm"
     else
       log "npm prefix is managed by nvm"
@@ -95,7 +113,7 @@ _ensure_npm_prefix_config() {
 
   prefix="$(env -u NPM_CONFIG_PREFIX npm config get prefix 2>/dev/null || true)"
   if [[ "$prefix" != "$HOME/.local" ]]; then
-    run npm config set prefix "$HOME/.local"
+    run npm config set prefix "$HOME/.local" || return 1
     log "Set npm prefix to $HOME/.local"
   else
     log "npm prefix is $HOME/.local"

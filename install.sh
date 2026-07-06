@@ -488,7 +488,7 @@ while IFS= read -r -d '' file; do
     # npm/npmrc is managed by install_node()/_ensure_npm_prefix_config after
     # the first deployment (it writes prefix/cache into the live copy).
     if [[ "$rel" == "npm/npmrc" ]]; then
-        if [[ -f "$HOME/.config/npm/npmrc" ]]; then
+        if [[ -f "$HOME/.config/npm/npmrc" ]] && [[ ! -L "$HOME/.config/npm/npmrc" ]]; then
             log "Skipping npm/npmrc (managed live copy)"
             continue
         fi
