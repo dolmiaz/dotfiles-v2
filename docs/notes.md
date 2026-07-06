@@ -420,3 +420,21 @@ Round 3 の「教訓・残課題」に挙げた項目一式を解消。
   `apt-get update` 前の空メタデータで `eza` などを誤って入手不能扱いにする問題を防ぐ。
 - starship / zoxide / rustup / uv の公式 installer は、dry-run 以外で導入後の
   binary post-check に失敗した場合、警告だけでなく module 失敗として返すようにした。
+
+## 2026-07-07: Round 20 最終レビュー（収束）
+
+- 独立 xhigh レビューの指摘 3 件は全て実測で反証し、コード変更なしと判断した。
+  - HIGH「common.sh が doctor の DOTFILES_DIR を親ディレクトリに上書き」:
+    `_dotfiles_resolve` 内の `BASH_SOURCE[1]` は関数呼び出し元である common.sh
+    自身（lib/）を指すため、常に repo root に解決される。/tmp から doctor.sh を
+    実行して全モジュールがロードされる（`module not loaded` = 0 件）ことを確認。
+  - LOW×2「`cmd+=(chsh -s "$path" "$user")` が 1 要素になる」: bash の配列 `+=`
+    は語ごとに要素分割される（実測: 5 要素に分割）。指摘は bash セマンティクスの
+    誤解で、fallback 経路の sudo 実行は正しく動作する。
+- 最終 E2E マトリクス（server profile フルインストール + doctor + zsh 起動）:
+  Ubuntu 24.04 / Ubuntu 22.04 / Debian 12 / Rocky 9 全てグリーン。
+  警告は設計どおりの「配布物に存在しないパッケージの手動導入案内」
+  （22.04/deb12/rocky の eza、rocky の direnv）と、コンテナ PAM 制約による
+  chsh 失敗（doctor --fix-sudo で修復可能なことは Round 8 で実証済み）のみ。
+- Round 7〜20 を通じ、フレッシュな全体レビューで有効な HIGH/MEDIUM が
+  ゼロになったため、バグハントを収束とする。
