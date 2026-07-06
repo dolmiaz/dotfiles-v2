@@ -19,6 +19,10 @@ VSCODE_EXTENSIONS_RUST=(rust-lang.rust-analyzer)
 VSCODE_EXTENSIONS_UV=(ms-python.python ms-python.vscode-pylance)
 VSCODE_EXTENSIONS_NODE=(dbaeumer.vscode-eslint)
 
+_vscode_cargo_bin_dir() {
+  printf '%s\n' "${CARGO_HOME:-${XDG_DATA_HOME:-$HOME/.local/share}/cargo}/bin"
+}
+
 _vscode_command() {
   if have code; then
     printf '%s\n' "code"
@@ -54,12 +58,39 @@ _vscode_install_extensions() {
   fi
 
   local exts=("$@")
+  local attempts=0
+  local failures=0
+  local ext
   for ext in "${exts[@]}"; do
+    attempts=$((attempts + 1))
     log "Installing VS Code extension: $ext"
     if ! run "$code_cmd" --install-extension "$ext" --force; then
       warn "Failed to install VS Code extension: $ext"
+      failures=$((failures + 1))
     fi
   done
+
+  if (( attempts > 0 )) && (( failures == attempts )); then
+    warn "All VS Code extension installs failed"
+    return 1
+  fi
+  return 0
+}
+
+_vscode_should_install_c_cpp_extensions() {
+  have gcc || have cc || [[ "${INSTALL_C_CPP:-0}" == "1" ]]
+}
+
+_vscode_should_install_rust_extensions() {
+  have rustup || [[ "${INSTALL_RUST:-0}" == "1" ]] || [[ -x "$(_vscode_cargo_bin_dir)/rustup" ]]
+}
+
+_vscode_should_install_uv_extensions() {
+  have uv || [[ "${INSTALL_UV:-0}" == "1" ]] || [[ -x "$HOME/.local/bin/uv" ]]
+}
+
+_vscode_should_install_node_extensions() {
+  have npm || [[ "${INSTALL_NODE:-0}" == "1" ]]
 }
 
 _vscode_settings_path() {
@@ -127,16 +158,16 @@ install_vscode() {
   _vscode_install_extensions "${VSCODE_EXTENSIONS_ALWAYS[@]}"
 
   # Conditional extensions based on installed toolchains
-  if have gcc || have cc; then
+  if _vscode_should_install_c_cpp_extensions; then
     _vscode_install_extensions "${VSCODE_EXTENSIONS_C_CPP[@]}"
   fi
-  if have rustup; then
+  if _vscode_should_install_rust_extensions; then
     _vscode_install_extensions "${VSCODE_EXTENSIONS_RUST[@]}"
   fi
-  if have uv; then
+  if _vscode_should_install_uv_extensions; then
     _vscode_install_extensions "${VSCODE_EXTENSIONS_UV[@]}"
   fi
-  if have npm; then
+  if _vscode_should_install_node_extensions; then
     _vscode_install_extensions "${VSCODE_EXTENSIONS_NODE[@]}"
   fi
 

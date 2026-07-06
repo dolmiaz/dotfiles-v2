@@ -33,9 +33,9 @@ install_zsh_plugins() {
     fi
   done
 
-  # If every plugin failed, report overall failure so install.sh counts this
-  # module as failed; a partial failure still returns success.
-  if [[ "$fail_count" -eq "${#ZSH_PLUGINS[@]}" ]]; then
+  # Any plugin failure should be recorded as a module failure while install.sh
+  # still continues with the rest of the components.
+  if (( fail_count > 0 )); then
     return 1
   fi
   return 0

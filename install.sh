@@ -517,6 +517,11 @@ done < <(find "$DOTFILES_DIR/config" -type f -print0)
 
 log "Running module installers..."
 
+# Module installers run in subshells, so PATH changes made inside earlier
+# modules do not propagate. Prepend known user-local toolchain locations so
+# later modules in this run can see freshly installed rustup/uv binaries.
+export PATH="$HOME/.local/bin:${CARGO_HOME:-${XDG_DATA_HOME:-$HOME/.local/share}/cargo}/bin:$PATH"
+
 # Source all module files.
 for mod in "$DOTFILES_DIR"/lib/modules/*.sh; do
     # shellcheck source=/dev/null

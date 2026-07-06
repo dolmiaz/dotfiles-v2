@@ -370,3 +370,14 @@ Round 3 の「教訓・残課題」に挙げた項目一式を解消。
 - doctor の CLI tools 検査でパッケージ入手可否を考慮。`pkg_available` を追加し、
   Ubuntu 22.04 の `eza` のように配布元に存在せず fallback installer もないツールは
   恒久 FAIL にせず、他の repairable な欠落がある場合だけ FAIL にするようにした。
+
+## 2026-07-07: Round 15 修正
+
+- module installer は subshell で実行されるため、Rust / uv などが同一 run 内で追加した
+  PATH が後続 module へ伝播しない問題に対応。module 実行前に既知の user-local
+  toolchain path を PATH へ前置し、VS Code 拡張判定でも `INSTALL_*` フラグと
+  既知パスを考慮するようにした。
+- VS Code 拡張インストールは、ある extension group の全拡張が失敗した場合に module
+  失敗として返すよう変更。部分失敗は従来どおり警告のみ。
+- zsh plugin は一部の clone / pull 失敗でも module 失敗として返し、installer の
+  failed component list に記録されるようにした。
