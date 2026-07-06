@@ -405,3 +405,11 @@ Round 3 の「教訓・残課題」に挙げた項目一式を解消。
   `path_helper` / `brew shellenv` 対応 entry を欠落時に copy 再配置するようにした。
 - `common.sh` の DOTFILES_DIR 解決が doctor の repo root 検出を壊すという指摘は実測で
   反証できたため、解決ロジックは変更せず、install.sh 側の説明コメントのみ修正した。
+
+## 2026-07-07: Round 18 修正
+
+- VS Code module は Linux で `snap` が無く本体を導入できない場合に成功扱いで
+  skip せず、手動導入手順の案内を出して module 失敗として返すようにした。
+- VS Code 拡張導入は一部失敗でも module 失敗として返し、全 extension group を
+  試行したうえで installer の failed component list に反映するようにした。
+  これにより VS Code のサイレント未導入や拡張の部分欠落を見落とさない。

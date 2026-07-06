@@ -70,8 +70,8 @@ _vscode_install_extensions() {
     fi
   done
 
-  if (( attempts > 0 )) && (( failures == attempts )); then
-    warn "All VS Code extension installs failed"
+  if (( failures > 0 )); then
+    warn "$failures of $attempts extensions failed"
     return 1
   fi
   return 0
@@ -188,6 +188,7 @@ _vscode_settings_path() {
 
 install_vscode() {
   VSCODE_CODE_CMD="$(_vscode_command 2>/dev/null || true)"
+  local extension_failed=0
 
   # ---- Install VS Code itself ----
   if [[ -z "$VSCODE_CODE_CMD" ]]; then
@@ -200,16 +201,16 @@ install_vscode() {
         if have snap; then
           pkg_run_priv snap install code --classic
         else
-          warn "snap not found; skipping VS Code installation"
-          return
+          warn "snap not found; skipping VS Code installation. Install snap or install VS Code manually: https://code.visualstudio.com/docs/setup/linux"
+          return 1
         fi
         ;;
       redhat)
         if have snap; then
           pkg_run_priv snap install code --classic
         else
-          warn "snap not found; skipping VS Code installation"
-          return
+          warn "snap not found; skipping VS Code installation. Install snap or install VS Code manually: https://code.visualstudio.com/docs/setup/linux"
+          return 1
         fi
         ;;
     esac
@@ -222,28 +223,29 @@ install_vscode() {
   # ---- Extensions ----
   if [[ -z "$VSCODE_CODE_CMD" ]]; then
     warn "code command not found after install; skipping extensions"
-    return
+    return 1
   fi
 
   # Always-install extensions
-  _vscode_install_extensions "${VSCODE_EXTENSIONS_ALWAYS[@]}"
+  _vscode_install_extensions "${VSCODE_EXTENSIONS_ALWAYS[@]}" || extension_failed=1
 
   # Conditional extensions based on installed toolchains
   if _vscode_should_install_c_cpp_extensions; then
-    _vscode_install_extensions "${VSCODE_EXTENSIONS_C_CPP[@]}"
+    _vscode_install_extensions "${VSCODE_EXTENSIONS_C_CPP[@]}" || extension_failed=1
   fi
   if _vscode_should_install_rust_extensions; then
-    _vscode_install_extensions "${VSCODE_EXTENSIONS_RUST[@]}"
+    _vscode_install_extensions "${VSCODE_EXTENSIONS_RUST[@]}" || extension_failed=1
   fi
   if _vscode_should_install_uv_extensions; then
-    _vscode_install_extensions "${VSCODE_EXTENSIONS_UV[@]}"
+    _vscode_install_extensions "${VSCODE_EXTENSIONS_UV[@]}" || extension_failed=1
   fi
   if _vscode_should_install_node_extensions; then
-    _vscode_install_extensions "${VSCODE_EXTENSIONS_NODE[@]}"
+    _vscode_install_extensions "${VSCODE_EXTENSIONS_NODE[@]}" || extension_failed=1
   fi
 
   # ---- Settings ----
   _vscode_deploy_settings
+  return "$extension_failed"
 }
 
 # _vscode_deploy_settings
