@@ -1,0 +1,53 @@
+# Local AI and agent configuration
+AGENTS.md
+CLAUDE.md
+.mcp.json
+.claude/
+.codex/
+.cursor/
+.continue/
+.windsurf/
+.aider*
+.copilot/
+.roo/
+.crush/
+.github/copilot-instructions.md
+
+# Local planning notes
+dotfiles-spec.md
+*.local.md
+notes/
+
+# Secrets and local environment
+.env
+.env.*
+!.env.example
+
+# Logs and caches
+*.log
+.cache/
+tmp/
+temp/
+
+# OS files
+.DS_Store
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+desktop.ini
+
+# Editor and IDE state
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# Build and package-manager byproducts
+node_modules/
+dist/
+build/
+coverage/
+__pycache__/
+*.pyc
