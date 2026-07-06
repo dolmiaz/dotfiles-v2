@@ -92,6 +92,18 @@ source "$SCRIPT_DIR/lib/deploy.sh"
 detect_os
 detect_pkg_manager
 
+# Abort early when no package manager is available, before any prompts or work.
+if [[ -z "$PKG_MANAGER" ]]; then
+    if [[ "$OS" == "macos" ]]; then
+        warn "Homebrew is required on macOS but was not found."
+        warn "Install it first by running:"
+        warn '  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"'
+        die "No package manager available -- aborting before making any changes."
+    else
+        die "No supported package manager found (apt, dnf, or yum is required). Install one and re-run install.sh."
+    fi
+fi
+
 # ---------- profile selection -------------------------------------------------
 
 if [[ -z "$PROFILE" ]]; then
@@ -124,14 +136,14 @@ resolve_flag() {
             eval "$varname=0"
             ;;
         Y)
-            if ask "Install ${label}?" "Y"; then
+            if ask "Install ${_BOLD}${label}${_RESET}?" "Y"; then
                 eval "$varname=1"
             else
                 eval "$varname=0"
             fi
             ;;
         N)
-            if ask "Install ${label}?" "N"; then
+            if ask "Install ${_BOLD}${label}${_RESET}?" "N"; then
                 eval "$varname=1"
             else
                 eval "$varname=0"
@@ -153,17 +165,107 @@ resolve_flag INSTALL_NODE        "Node.js"           "$NODE"
 resolve_flag INSTALL_VSCODE      "VS Code extensions" "$VSCODE"
 resolve_flag INSTALL_ZSH_PLUGINS "zsh plugins"       "$ZSH_PLUGINS"
 
-# ---------- git config generation ---------------------------------------------
+# ---------- git identity collection (values only -- nothing written yet) -------
+
+git_name=""
+git_email=""
 
 if [[ "$GIT_CONFIG" != "SKIP" ]]; then
-    log "Configuring git..."
-
     # Use existing git config values as defaults when profile does not provide them.
     _default_git_name="${GIT_USER_NAME:-$(git config --global user.name 2>/dev/null || true)}"
     _default_git_email="${GIT_USER_EMAIL:-$(git config --global user.email 2>/dev/null || true)}"
 
     git_name="$(ask_input "Git user.name" "$_default_git_name")"
     git_email="$(ask_input "Git user.email" "$_default_git_email")"
+fi
+
+# ---------- chsh decision (asked now, executed after confirmation) --------------
+
+DO_CHSH=0
+CHSH_SUMMARY="skipped"
+
+if [[ "$CHSH" == "SKIP" ]] || [[ "$NO_CHSH" == "1" ]]; then
+    DO_CHSH=0
+    CHSH_SUMMARY="skipped"
+elif [[ "$(basename "${SHELL:-}")" == "zsh" ]]; then
+    DO_CHSH=0
+    CHSH_SUMMARY="no (already zsh)"
+elif ask "Change default shell to zsh?" "Y"; then
+    DO_CHSH=1
+    CHSH_SUMMARY="yes"
+else
+    DO_CHSH=0
+    CHSH_SUMMARY="no"
+fi
+
+# ---------- installation summary ------------------------------------------------
+
+# summary_component FLAG LABEL
+#   Print one component line: [install] (green) or [skip] (yellow), bold label.
+summary_component() {
+    local flag="$1"
+    local label="$2"
+    if [[ "$flag" == "1" ]]; then
+        printf '   %s[install]%s %s%s%s\n' "$_GREEN" "$_RESET" "$_BOLD" "$label" "$_RESET"
+    else
+        printf '   %s[skip]%s    %s%s%s\n' "$_YELLOW" "$_RESET" "$_BOLD" "$label" "$_RESET"
+    fi
+}
+
+if [[ "$GIT_CONFIG" == "SKIP" ]]; then
+    GIT_SUMMARY="skipped"
+elif [[ -z "$git_name" ]] || [[ -z "$git_email" ]]; then
+    GIT_SUMMARY="(name or email empty -- will be skipped)"
+else
+    GIT_SUMMARY="$git_name <$git_email>"
+fi
+
+DEPLOY_MODE_SUMMARY="copy"
+if [[ "$LINK_MODE" == "1" ]]; then
+    DEPLOY_MODE_SUMMARY="link"
+fi
+
+DRY_RUN_SUMMARY="no"
+if [[ "$DRY_RUN" == "1" ]]; then
+    DRY_RUN_SUMMARY="yes"
+fi
+
+printf '\n'
+printf '==============================================\n'
+printf ' Installation Summary\n'
+printf '==============================================\n'
+printf ' Profile       : %s\n' "$PROFILE"
+printf ' OS            : %s (%s)\n' "$OS" "$PKG_MANAGER"
+printf ' Deploy mode   : %s\n' "$DEPLOY_MODE_SUMMARY"
+printf ' Dry run       : %s\n' "$DRY_RUN_SUMMARY"
+printf '\n'
+printf ' Components:\n'
+summary_component "$INSTALL_BASE"        "base packages"
+summary_component "$INSTALL_CLI_TOOLS"   "CLI tools"
+summary_component "$INSTALL_C_CPP"       "C/C++ toolchain"
+summary_component "$INSTALL_RUST"        "Rust"
+summary_component "$INSTALL_UV"          "uv (Python)"
+summary_component "$INSTALL_NODE"        "Node.js"
+summary_component "$INSTALL_VSCODE"      "VS Code extensions"
+summary_component "$INSTALL_ZSH_PLUGINS" "zsh plugins"
+printf '\n'
+printf ' Git identity  : %s\n' "$GIT_SUMMARY"
+printf ' Change shell  : %s\n' "$CHSH_SUMMARY"
+printf '==============================================\n'
+printf '\n'
+
+# ---------- final confirmation --------------------------------------------------
+
+if ! ask "Proceed with installation?" "Y"; then
+    log "Aborted. No changes were made."
+    exit 0
+fi
+
+# ---------- git config generation ---------------------------------------------
+
+if [[ "$GIT_CONFIG" != "SKIP" ]]; then
+    log "Configuring git..."
+
     git_editor="${VISUAL:-${EDITOR:-vim}}"
 
     if [[ -z "$git_name" ]] || [[ -z "$git_email" ]]; then
@@ -293,19 +395,13 @@ done
 
 # ---------- chsh (change default shell to zsh) --------------------------------
 
-if [[ "$CHSH" != "SKIP" ]] && [[ "$NO_CHSH" != "1" ]]; then
-    current_shell="$(basename "${SHELL:-}")"
-    if [[ "$current_shell" != "zsh" ]]; then
-        if ask "Change default shell to zsh?" "Y"; then
-            zsh_path="$(command -v zsh 2>/dev/null || true)"
-            if [[ -n "$zsh_path" ]]; then
-                run chsh -s "$zsh_path"
-            else
-                warn "zsh not found -- cannot change shell"
-            fi
-        fi
+# Decision was made before the summary; only execute it here.
+if [[ "$DO_CHSH" == "1" ]]; then
+    zsh_path="$(command -v zsh 2>/dev/null || true)"
+    if [[ -n "$zsh_path" ]]; then
+        run chsh -s "$zsh_path"
     else
-        log "Default shell is already zsh"
+        warn "zsh not found -- cannot change shell"
     fi
 fi
 

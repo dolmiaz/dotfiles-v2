@@ -25,7 +25,7 @@ export YES
 ask() {
     local question="${1:?ask: question required}"
     local default="${2:-Y}"
-    default="${default^^}"  # uppercase
+    default="$(printf '%s' "$default" | tr '[:lower:]' '[:upper:]')"  # uppercase (bash 3.2 compatible)
 
     local prompt
     if [[ "$default" == "Y" ]]; then
@@ -45,7 +45,7 @@ ask() {
     printf '%s %s ' "$question" "$prompt" >&2
     read -r answer </dev/tty || answer=""
     answer="${answer:-$default}"
-    answer="${answer^^}"
+    answer="$(printf '%s' "$answer" | tr '[:lower:]' '[:upper:]')"
 
     [[ "$answer" == "Y" || "$answer" == "YES" ]]
 }

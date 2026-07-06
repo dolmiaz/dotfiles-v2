@@ -36,12 +36,14 @@ if _use_color; then
     _GREEN=$'\033[0;32m'
     _YELLOW=$'\033[0;33m'
     _CYAN=$'\033[0;36m'
+    _BOLD=$'\033[1m'
     _RESET=$'\033[0m'
 else
     _RED=""
     _GREEN=""
     _YELLOW=""
     _CYAN=""
+    _BOLD=""
     _RESET=""
 fi
 
