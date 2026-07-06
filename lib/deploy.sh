@@ -10,8 +10,8 @@ if ! declare -f log &>/dev/null; then
     source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/common.sh"
 fi
 
-# LINK_MODE: 1 = create symlinks, 0 = copy files.
-LINK_MODE="${LINK_MODE:-1}"
+# LINK_MODE: 1 = create symlinks, 0 = copy files.  Default is copy.
+LINK_MODE="${LINK_MODE:-0}"
 export LINK_MODE
 
 # ---------- backup ------------------------------------------------------------
