@@ -82,6 +82,12 @@ deploy_file() {
         return 0
     fi
 
+    # In copy mode, skip identical regular files (avoids backup churn on re-runs).
+    if [[ "$mode" == "copy" ]] && [[ -f "$dest" ]] && [[ ! -L "$dest" ]] && cmp -s "$src" "$dest"; then
+        log "Up to date: $dest"
+        return 0
+    fi
+
     # Back up existing file at destination.
     backup_file "$dest"
 
